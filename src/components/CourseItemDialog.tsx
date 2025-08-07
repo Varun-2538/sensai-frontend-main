@@ -1007,6 +1007,15 @@ const CourseItemDialog: React.FC<CourseItemDialogProps> = ({
                                 }}
                                 courseId={courseId}
                                 userId={user?.id}
+                                taskData={{
+                                    assessment_mode: activeItem.assessmentMode,
+                                    duration_minutes: activeItem.durationMinutes,
+                                    integrity_monitoring: activeItem.integrityMonitoring,
+                                    attempts_allowed: activeItem.attemptsAllowed,
+                                    shuffle_questions: activeItem.shuffleQuestions,
+                                    show_results: activeItem.showResults,
+                                    passing_score_percentage: activeItem.passingScore,
+                                }}
                                 onSaveSuccess={(updatedData) => {
                                     // Handle save success
                                     if (updatedData) {
@@ -1018,6 +1027,29 @@ const CourseItemDialog: React.FC<CourseItemDialogProps> = ({
 
                                             if (updatedData.questions) {
                                                 activeItem.questions = updatedData.questions;
+                                            }
+
+                                            // Update assessment mode properties to persist across navigation
+                                            if (updatedData.assessment_mode !== undefined) {
+                                                activeItem.assessmentMode = updatedData.assessment_mode;
+                                            }
+                                            if (updatedData.duration_minutes !== undefined) {
+                                                activeItem.durationMinutes = updatedData.duration_minutes;
+                                            }
+                                            if (updatedData.integrity_monitoring !== undefined) {
+                                                activeItem.integrityMonitoring = updatedData.integrity_monitoring;
+                                            }
+                                            if (updatedData.attempts_allowed !== undefined) {
+                                                activeItem.attemptsAllowed = updatedData.attempts_allowed;
+                                            }
+                                            if (updatedData.shuffle_questions !== undefined) {
+                                                activeItem.shuffleQuestions = updatedData.shuffle_questions;
+                                            }
+                                            if (updatedData.show_results !== undefined) {
+                                                activeItem.showResults = updatedData.show_results;
+                                            }
+                                            if (updatedData.passing_score_percentage !== undefined) {
+                                                activeItem.passingScore = updatedData.passing_score_percentage;
                                             }
                                         }
 
@@ -1048,6 +1080,29 @@ const CourseItemDialog: React.FC<CourseItemDialogProps> = ({
 
                                             if (updatedData.questions) {
                                                 activeItem.questions = updatedData.questions;
+                                            }
+
+                                            // Update assessment mode properties to persist across navigation
+                                            if (updatedData.assessment_mode !== undefined) {
+                                                activeItem.assessmentMode = updatedData.assessment_mode;
+                                            }
+                                            if (updatedData.duration_minutes !== undefined) {
+                                                activeItem.durationMinutes = updatedData.duration_minutes;
+                                            }
+                                            if (updatedData.integrity_monitoring !== undefined) {
+                                                activeItem.integrityMonitoring = updatedData.integrity_monitoring;
+                                            }
+                                            if (updatedData.attempts_allowed !== undefined) {
+                                                activeItem.attemptsAllowed = updatedData.attempts_allowed;
+                                            }
+                                            if (updatedData.shuffle_questions !== undefined) {
+                                                activeItem.shuffleQuestions = updatedData.shuffle_questions;
+                                            }
+                                            if (updatedData.show_results !== undefined) {
+                                                activeItem.showResults = updatedData.show_results;
+                                            }
+                                            if (updatedData.passing_score_percentage !== undefined) {
+                                                activeItem.passingScore = updatedData.passing_score_percentage;
                                             }
                                         }
 

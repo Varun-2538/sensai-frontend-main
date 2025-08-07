@@ -5,7 +5,7 @@ import TopPerformers from "./TopPerformers";
 import { Module } from "@/types/course";
 import { useAuth } from "@/lib/auth";
 import { Course, Cohort } from "@/types";
-import { ChevronDown, Shield } from "lucide-react";
+import { ChevronDown, Shield, CheckCircle } from "lucide-react";
 import MobileDropdown, { DropdownOption } from "./MobileDropdown";
 import Link from "next/link";
 
@@ -422,24 +422,82 @@ export default function LearnerCohortView({
                             />
                         )}
 
-                        {/* Integrity Assessment Link - Only show when not in integrity mode */}
-                        {!integrityMode && schoolId && cohortId && (
-                            <div className="bg-gray-900 rounded-lg p-6">
-                                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                                    <Shield className="w-5 h-5 mr-2 text-purple-400" />
-                                    Integrity Assessment
-                                </h3>
-                                <p className="text-gray-400 text-sm mb-4">
-                                    Take this course in integrity-monitored mode for enhanced security.
-                                </p>
-                                <Link
-                                    href={`/school/${schoolId}/cohort/${cohortId}/integrity-assessment`}
-                                    className="block w-full bg-purple-600 hover:bg-purple-700 text-white text-center py-2 px-4 rounded-lg transition-colors"
-                                >
-                                    Start Integrity Assessment
-                                </Link>
-                            </div>
-                        )}
+                                                   {/* Enhanced Quiz/Assessment Section */}
+                           {!integrityMode && schoolId && cohortId && (
+                               <div className="bg-gray-900 rounded-lg p-6">
+                                   <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                                       <CheckCircle className="w-5 h-5 mr-2 text-green-400" />
+                                       Quizzes & Assessments
+                                   </h3>
+                                   
+                                   {/* Get quiz tasks from existing course modules */}
+                                   <div className="space-y-3">
+                                       {/* Find and display quiz tasks from modules */}
+                                       {courses[activeCourseIndex]?.modules?.map((module) => 
+                                           module.items?.filter(item => item.type === 'quiz').map((quiz) => (
+                                               <div key={quiz.id} className="p-3 bg-gray-800 rounded-lg">
+                                                   <div className="flex items-center justify-between mb-2">
+                                                       <h4 className="font-medium text-white text-sm">{quiz.title}</h4>
+                                                       <div className="flex items-center space-x-2">
+                                                           {/* Show if it's assessment mode */}
+                                                           {quiz.assessmentMode && (
+                                                               <span className="px-2 py-1 bg-purple-900/20 text-purple-400 text-xs rounded flex items-center">
+                                                                   <Shield className="w-3 h-3 mr-1" />
+                                                                   Assessment
+                                                               </span>
+                                                           )}
+                                                           <span className={`px-2 py-1 text-xs rounded ${
+                                                               quiz.status === 'published' 
+                                                                   ? 'bg-green-900/20 text-green-400' 
+                                                                   : 'bg-gray-700 text-gray-400'
+                                                           }`}>
+                                                               {quiz.status === 'published' ? 'Available' : 'Draft'}
+                                                           </span>
+                                                       </div>
+                                                   </div>
+                                                   
+                                                   <div className="text-gray-400 text-xs mb-3 flex items-center space-x-4">
+                                                       {quiz.durationMinutes && (
+                                                           <span>{quiz.durationMinutes} minutes</span>
+                                                       )}
+                                                       {quiz.numQuestions && (
+                                                           <span>{quiz.numQuestions} questions</span>
+                                                       )}
+                                                       {quiz.integrityMonitoring && (
+                                                           <span className="text-purple-400">Integrity Monitored</span>
+                                                       )}
+                                                   </div>
+                                                   
+                                                   {quiz.status === 'published' ? (
+                                                       <Link
+                                                           href={`/school/${schoolId}/cohort/${cohortId}/task/${quiz.id}${quiz.assessmentMode ? '?mode=assessment' : ''}`}
+                                                           className={`block w-full text-white text-center py-2 px-3 rounded text-sm transition-colors ${
+                                                               quiz.assessmentMode 
+                                                                   ? 'bg-purple-600 hover:bg-purple-700' 
+                                                                   : 'bg-green-600 hover:bg-green-700'
+                                                           }`}
+                                                       >
+                                                           {quiz.assessmentMode ? 'Take Assessment' : 'Start Quiz'}
+                                                       </Link>
+                                                   ) : (
+                                                       <button
+                                                           disabled
+                                                           className="block w-full bg-gray-700 text-gray-400 text-center py-2 px-3 rounded text-sm cursor-not-allowed"
+                                                       >
+                                                           Not Available Yet
+                                                       </button>
+                                                   )}
+                                               </div>
+                                           ))
+                                       ) || (
+                                           <div className="text-center py-8 text-gray-500">
+                                               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                               <p>No quizzes available yet</p>
+                                           </div>
+                                       )}
+                                   </div>
+                               </div>
+                           )}
 
                         {/* Only show TopPerformers if showTopPerformers is true */}
                         {showTopPerformers && (

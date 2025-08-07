@@ -415,7 +415,15 @@ export default function CreateCourse() {
             type: 'quiz',
             questions: taskData.questions || [],
             status: 'draft',
-            scheduled_publish_at: null
+            scheduled_publish_at: null,
+            // Initialize assessment mode properties with default values
+            assessmentMode: taskData.assessment_mode || false,
+            durationMinutes: taskData.duration_minutes || 60,
+            integrityMonitoring: taskData.integrity_monitoring || false,
+            attemptsAllowed: taskData.attempts_allowed || 1,
+            shuffleQuestions: taskData.shuffle_questions || false,
+            showResults: taskData.show_results !== undefined ? taskData.show_results : true,
+            passingScore: taskData.passing_score_percentage || 60
         };
 
         return addItemToState(moduleId, newItem, position);
@@ -595,7 +603,15 @@ export default function CreateCourse() {
         if (item.type === 'quiz' && !item.questions) {
             const updatedItem = {
                 ...item,
-                questions: [{ id: `question-${Date.now()}`, content: [], config: { ...defaultQuestionConfig } }]
+                questions: [{ id: `question-${Date.now()}`, content: [], config: { ...defaultQuestionConfig } }],
+                // Initialize assessment mode properties if not already set
+                assessmentMode: item.assessmentMode || false,
+                durationMinutes: item.durationMinutes || 60,
+                integrityMonitoring: item.integrityMonitoring || false,
+                attemptsAllowed: item.attemptsAllowed || 1,
+                shuffleQuestions: item.shuffleQuestions || false,
+                showResults: item.showResults !== undefined ? item.showResults : true,
+                passingScore: item.passingScore || 60
             } as Quiz;
 
             // Update the module with the fixed item
@@ -1492,7 +1508,15 @@ export default function CreateCourse() {
                                             questions: [],
                                             status: 'draft',
                                             scheduled_publish_at: null,
-                                            isGenerating: true
+                                            isGenerating: true,
+                                            // Initialize assessment mode properties with default values
+                                            assessmentMode: false,
+                                            durationMinutes: 60,
+                                            integrityMonitoring: false,
+                                            attemptsAllowed: 1,
+                                            shuffleQuestions: false,
+                                            showResults: true,
+                                            passingScore: 60
                                         } as Quiz;
                                     }
 

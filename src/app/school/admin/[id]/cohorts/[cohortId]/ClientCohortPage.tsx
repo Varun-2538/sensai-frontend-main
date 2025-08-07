@@ -668,14 +668,14 @@ export default function ClientCohortPage({ schoolId, cohortId }: ClientCohortPag
                                                     <span>Invite learners</span>
                                                 </button>
 
-                                                {/* Integrity Review Link */}
-                                                <Link
-                                                    href={`/school/admin/${schoolId}/integrity/${cohortId}`}
-                                                    className="flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 text-white text-sm font-medium rounded-full hover:bg-purple-700 transition-colors cursor-pointer"
-                                                >
-                                                    <Shield size={16} />
-                                                    <span>Integrity Review</span>
-                                                </Link>
+                    {/* Integrity Review Link */}
+                    <Link
+                        href={`/school/admin/${schoolId}/integrity/${cohortId}`}
+                        className="flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 text-white text-sm font-medium rounded-full hover:bg-purple-700 transition-colors cursor-pointer"
+                    >
+                        <Shield size={16} />
+                        <span>Integrity Review</span>
+                    </Link>
 
                                                 {/* Link Course button and dropdown */}
                                                 <div className="relative">

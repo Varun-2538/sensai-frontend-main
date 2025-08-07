@@ -3,7 +3,7 @@
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from "react";
-import { ChevronLeft, ChevronRight, Plus, FileText, Trash2, FileCode, AudioLines, Check, HelpCircle, X, ChevronDown, Pen, ClipboardCheck, Search, BookOpen, Code, Sparkles, Tag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, FileText, Trash2, FileCode, AudioLines, Check, HelpCircle, X, ChevronDown, Pen, ClipboardCheck, Search, BookOpen, Code, Sparkles, Tag, Shield, Clock, Camera } from "lucide-react";
 
 // Add custom styles for dark mode
 import "./editor-styles.css";
@@ -140,6 +140,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
     courseId,
     scheduledPublishAt = null,
     onQuestionChangeWithUnsavedScorecardChanges,
+    taskData,
 }, ref) => {
     // For published quizzes: data is always fetched from the API
     // For draft quizzes: always start with empty questions
@@ -332,6 +333,15 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                         // Update questions state
                         setQuestions(updatedQuestions);
 
+                        // Extract and set assessment mode properties from fetched data
+                        if (data.assessment_mode !== undefined) setAssessmentMode(data.assessment_mode);
+                        if (data.duration_minutes !== undefined) setDurationMinutes(data.duration_minutes);
+                        if (data.integrity_monitoring !== undefined) setIntegrityMonitoring(data.integrity_monitoring);
+                        if (data.attempts_allowed !== undefined) setAttemptsAllowed(data.attempts_allowed);
+                        if (data.shuffle_questions !== undefined) setShuffleQuestions(data.shuffle_questions);
+                        if (data.show_results !== undefined) setShowResults(data.show_results);
+                        if (data.passing_score_percentage !== undefined) setPassingScore(data.passing_score_percentage);
+
                         // Store original scorecard data for change detection
                         const originalData = new Map<string, { name: string, criteria: CriterionData[] }>();
                         updatedQuestions.forEach((question: QuizQuestion) => {
@@ -475,13 +485,115 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
     const scorecardRef = useRef<ScorecardHandle>(null);
 
     // State for tracking active tab (question or answer)
-    const [activeEditorTab, setActiveEditorTab] = useState<'question' | 'answer' | 'scorecard' | 'knowledge'>('question');
+    const [activeEditorTab, setActiveEditorTab] = useState<'question' | 'answer' | 'scorecard' | 'knowledge' | 'assessment'>('question');
 
     // State to track which field is being highlighted for validation errors
     const [highlightedField, setHighlightedField] = useState<'question' | 'answer' | 'codingLanguage' | null>(null);
 
     // State to track if the question count should be highlighted (after adding a new question)
     const [questionCountHighlighted, setQuestionCountHighlighted] = useState(false);
+
+    // Assessment mode state variables
+    const [assessmentMode, setAssessmentMode] = useState(false);
+    const [durationMinutes, setDurationMinutes] = useState(60);
+    const [integrityMonitoring, setIntegrityMonitoring] = useState(false);
+    const [attemptsAllowed, setAttemptsAllowed] = useState(1);
+    const [shuffleQuestions, setShuffleQuestions] = useState(false);
+    const [showResults, setShowResults] = useState(true);
+    const [passingScore, setPassingScore] = useState(60);
+
+    // Initialize assessment settings from taskData when component mounts or taskData changes
+    useEffect(() => {
+        if (taskData) {
+            setAssessmentMode(taskData.assessment_mode || false);
+            setDurationMinutes(taskData.duration_minutes || 60);
+            setIntegrityMonitoring(taskData.integrity_monitoring || false);
+            setAttemptsAllowed(taskData.attempts_allowed || 1);
+            setShuffleQuestions(taskData.shuffle_questions || false);
+            setShowResults(taskData.show_results !== undefined ? taskData.show_results : true);
+            setPassingScore(taskData.passing_score_percentage || 60);
+        }
+    }, [taskData]);
+
+    // Auto-save assessment mode changes with debouncing
+    const assessmentChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
+    const saveAssessmentChanges = useCallback(async () => {
+        if (!taskId || readOnly) return;
+        
+        try {
+            // Get the current title from the dialog
+            const dialogTitleElement = document.querySelector('.dialog-content-editor')?.parentElement?.querySelector('h2');
+            const currentTitle = dialogTitleElement?.textContent || '';
+
+            // Make POST request to save assessment changes immediately
+            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/${taskId}/quiz`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: currentTitle,
+                    questions: questions.map((question) => ({
+                        blocks: question.content,
+                        answer: question.config.correctAnswer || [],
+                        input_type: question.config.inputType,
+                        response_type: question.config.responseType,
+                        coding_languages: question.config.codingLanguages || [],
+                        generation_model: null,
+                        type: question.config.questionType,
+                        max_attempts: question.config.responseType === 'exam' ? 1 : null,
+                        is_feedback_shown: question.config.responseType === 'exam' ? false : true,
+                        scorecard_id: question.config.scorecardData?.id || null,
+                        context: getKnowledgeBaseContent(question.config),
+                        title: question.config.title,
+                    })),
+                    scheduled_publish_at: scheduledPublishAt,
+                    status: status,
+                    // Assessment mode configuration
+                    assessment_mode: assessmentMode,
+                    duration_minutes: durationMinutes,
+                    integrity_monitoring: integrityMonitoring,
+                    attempts_allowed: attemptsAllowed,
+                    shuffle_questions: shuffleQuestions,
+                    show_results: showResults,
+                    passing_score_percentage: passingScore
+                }),
+            });
+
+            if (response.ok) {
+                console.log('Assessment mode settings saved successfully');
+            }
+        } catch (error) {
+            console.error('Error saving assessment mode changes:', error);
+        }
+    }, [taskId, readOnly, questions, scheduledPublishAt, status, assessmentMode, durationMinutes, integrityMonitoring, attemptsAllowed, shuffleQuestions, showResults, passingScore]);
+
+    // Debounced auto-save for assessment mode changes
+    const debouncedSaveAssessment = useCallback(() => {
+        if (assessmentChangeTimeoutRef.current) {
+            clearTimeout(assessmentChangeTimeoutRef.current);
+        }
+        assessmentChangeTimeoutRef.current = setTimeout(() => {
+            saveAssessmentChanges();
+        }, 1000); // Save after 1 second of no changes
+    }, [saveAssessmentChanges]);
+
+    // Add effects to auto-save when assessment settings change
+    useEffect(() => {
+        if (taskId && !readOnly) {
+            debouncedSaveAssessment();
+        }
+    }, [assessmentMode, durationMinutes, integrityMonitoring, attemptsAllowed, shuffleQuestions, showResults, passingScore, debouncedSaveAssessment, taskId, readOnly]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (assessmentChangeTimeoutRef.current) {
+                clearTimeout(assessmentChangeTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Add validation utility functions to reduce duplication
     // These functions can validate both the current question and any question by index
@@ -1763,7 +1875,15 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                     title: currentTitle,
                     questions: formattedQuestions,
                     scheduled_publish_at: scheduledPublishAt,
-                    status: status
+                    status: status,
+                    // Assessment mode configuration
+                    assessment_mode: assessmentMode,
+                    duration_minutes: durationMinutes,
+                    integrity_monitoring: integrityMonitoring,
+                    attempts_allowed: attemptsAllowed,
+                    shuffle_questions: shuffleQuestions,
+                    show_results: showResults,
+                    passing_score_percentage: passingScore
                 }),
             });
 
@@ -1852,7 +1972,15 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                 body: JSON.stringify({
                     title: currentTitle,
                     questions: formattedQuestions,
-                    scheduled_publish_at: scheduledPublishAt
+                    scheduled_publish_at: scheduledPublishAt,
+                    // Assessment mode configuration
+                    assessment_mode: assessmentMode,
+                    duration_minutes: durationMinutes,
+                    integrity_monitoring: integrityMonitoring,
+                    attempts_allowed: attemptsAllowed,
+                    shuffle_questions: shuffleQuestions,
+                    show_results: showResults,
+                    passing_score_percentage: passingScore
                 }),
             });
 
@@ -2767,6 +2895,16 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                 <BookOpen size={16} className="mr-2" />
                                                 AI Training Resources
                                             </button>
+                                            <button
+                                                className={`flex items-center px-4 py-2 rounded-md text-sm font-medium cursor-pointer ${activeEditorTab === 'assessment'
+                                                    ? 'bg-[#333333] text-white'
+                                                    : 'text-gray-400 hover:text-white'
+                                                    }`}
+                                                onClick={() => setActiveEditorTab('assessment')}
+                                            >
+                                                <Shield size={16} className="mr-2" />
+                                                Assessment Mode
+                                            </button>
                                         </div>
                                     </div>
 
@@ -2922,6 +3060,190 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                             </div>
                                                         </div>
                                                     )}
+                                                </div>
+                                            </div>
+                                        ) : activeEditorTab === 'assessment' ? (
+                                            <div 
+                                                className="w-full h-full p-6 space-y-6"
+                                                onClick={(e) => e.stopPropagation()}
+                                                onMouseDown={(e) => e.stopPropagation()}
+                                            >
+                                                <div className="max-w-4xl mx-auto">
+                                                    <div className="bg-[#1a1a1a] rounded-lg p-6 border border-gray-800">
+                                                        <div className="flex items-center mb-6">
+                                                            <Shield className="w-6 h-6 text-purple-400 mr-3" />
+                                                            <div>
+                                                                <h3 className="text-xl font-semibold text-white">Assessment Mode Configuration</h3>
+                                                                <p className="text-gray-400 text-sm">Configure timed assessments with integrity monitoring and proctoring features</p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Assessment Mode Toggle */}
+                                                        <div 
+                                                            className="space-y-6"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onMouseDown={(e) => e.stopPropagation()}
+                                                        >
+                                                            <div className="flex items-center justify-between p-4 bg-[#2a2a2a] rounded-lg">
+                                                                <div className="flex items-center space-x-3">
+                                                                    <div className="p-2 bg-purple-600/20 rounded-lg">
+                                                                        <Shield className="w-5 h-5 text-purple-400" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-white font-medium">Enable Assessment Mode</h4>
+                                                                        <p className="text-gray-400 text-sm">Convert this quiz into a timed, monitored assessment</p>
+                                                                    </div>
+                                                                </div>
+                                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={assessmentMode}
+                                                                        onChange={(e) => setAssessmentMode(e.target.checked)}
+                                                                        disabled={readOnly}
+                                                                        className="sr-only peer"
+                                                                    />
+                                                                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                                                </label>
+                                                            </div>
+
+                                                            {/* Assessment Settings - Only show when assessment mode is enabled */}
+                                                            {assessmentMode && (
+                                                                <div className="space-y-4 pl-6 border-l-2 border-purple-600/30">
+                                                                    {/* Duration */}
+                                                                    <div className="flex items-center space-x-4">
+                                                                        <div className="flex items-center space-x-2 min-w-[120px]">
+                                                                            <Clock className="w-4 h-4 text-blue-400" />
+                                                                            <span className="text-white text-sm font-medium">Duration:</span>
+                                                                        </div>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={durationMinutes}
+                                                                            onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
+                                                                            disabled={readOnly}
+                                                                            min="1"
+                                                                            max="480"
+                                                                            className="w-20 px-3 py-2 bg-[#2a2a2a] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                                        />
+                                                                        <span className="text-gray-400 text-sm">minutes</span>
+                                                                    </div>
+
+                                                                    {/* Passing Score */}
+                                                                    <div className="flex items-center space-x-4">
+                                                                        <div className="flex items-center space-x-2 min-w-[120px]">
+                                                                            <span className="text-white text-sm font-medium">Passing Score:</span>
+                                                                        </div>
+                                                                        <input
+                                                                            type="number"
+                                                                            value={passingScore}
+                                                                            onChange={(e) => setPassingScore(parseInt(e.target.value) || 60)}
+                                                                            disabled={readOnly}
+                                                                            min="0"
+                                                                            max="100"
+                                                                            className="w-20 px-3 py-2 bg-[#2a2a2a] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                                        />
+                                                                        <span className="text-gray-400 text-sm">% required to pass</span>
+                                                                    </div>
+
+                                                                    {/* Attempts Allowed */}
+                                                                    <div className="flex items-center space-x-4">
+                                                                        <div className="flex items-center space-x-2 min-w-[120px]">
+                                                                            <span className="text-white text-sm font-medium">Attempts:</span>
+                                                                        </div>
+                                                                        <select
+                                                                            value={attemptsAllowed}
+                                                                            onChange={(e) => setAttemptsAllowed(parseInt(e.target.value))}
+                                                                            disabled={readOnly}
+                                                                            className="px-3 py-2 bg-[#2a2a2a] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                                        >
+                                                                            <option value={1}>1 attempt only</option>
+                                                                            <option value={2}>2 attempts</option>
+                                                                            <option value={3}>3 attempts</option>
+                                                                            <option value={-1}>Unlimited</option>
+                                                                        </select>
+                                                                    </div>
+
+                                                                    {/* Integrity Monitoring Toggle */}
+                                                                    <div className="flex items-center justify-between p-4 bg-[#2a2a2a] rounded-lg border border-orange-600/30">
+                                                                        <div className="flex items-center space-x-3">
+                                                                            <div className="p-2 bg-orange-600/20 rounded-lg">
+                                                                                <Camera className="w-5 h-5 text-orange-400" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <h4 className="text-white font-medium">Integrity Monitoring</h4>
+                                                                                <p className="text-gray-400 text-sm">Enable camera and behavior monitoring during assessment</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={integrityMonitoring}
+                                                                                onChange={(e) => setIntegrityMonitoring(e.target.checked)}
+                                                                                disabled={readOnly}
+                                                                                className="sr-only peer"
+                                                                            />
+                                                                            <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                                                                        </label>
+                                                                    </div>
+
+                                                                    {/* Additional Options */}
+                                                                    <div className="grid grid-cols-2 gap-4">
+                                                                        <div className="flex items-center space-x-3">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                id="shuffleQuestions"
+                                                                                checked={shuffleQuestions}
+                                                                                onChange={(e) => setShuffleQuestions(e.target.checked)}
+                                                                                disabled={readOnly}
+                                                                                className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                                                                            />
+                                                                            <label htmlFor="shuffleQuestions" className="text-white text-sm">
+                                                                                Shuffle question order
+                                                                            </label>
+                                                                        </div>
+                                                                        <div className="flex items-center space-x-3">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                id="showResults"
+                                                                                checked={showResults}
+                                                                                onChange={(e) => setShowResults(e.target.checked)}
+                                                                                disabled={readOnly}
+                                                                                className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                                                                            />
+                                                                            <label htmlFor="showResults" className="text-white text-sm">
+                                                                                Show results after completion
+                                                                            </label>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Information boxes */}
+                                                        <div className="mt-6 space-y-3">
+                                                            <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4">
+                                                                <h4 className="text-blue-300 font-medium mb-2">Assessment Mode Features</h4>
+                                                                <ul className="text-sm text-gray-300 space-y-1">
+                                                                    <li>• Timed sessions with automatic submission</li>
+                                                                    <li>• Limited attempts and single-session completion</li>
+                                                                    <li>• Automatic scoring for objective questions</li>
+                                                                    <li>• Analytics and performance tracking</li>
+                                                                </ul>
+                                                            </div>
+                                                            
+                                                            {integrityMonitoring && (
+                                                                <div className="bg-orange-900/20 border border-orange-600/30 rounded-lg p-4">
+                                                                    <h4 className="text-orange-300 font-medium mb-2">Integrity Monitoring Includes</h4>
+                                                                    <ul className="text-sm text-gray-300 space-y-1">
+                                                                        <li>• Face detection and presence monitoring</li>
+                                                                        <li>• Tab switching and window focus detection</li>
+                                                                        <li>• Copy/paste operation monitoring</li>
+                                                                        <li>• Screen recording prevention</li>
+                                                                        <li>• Detailed activity timeline for review</li>
+                                                                    </ul>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (

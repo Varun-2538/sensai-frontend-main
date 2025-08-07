@@ -20,6 +20,15 @@ export interface Quiz {
   status?: string; // Add status field to track draft/published state
   scheduled_publish_at: string | null;
   isGenerating?: boolean;
+  
+  // Assessment mode features
+  assessmentMode?: boolean;
+  durationMinutes?: number;
+  integrityMonitoring?: boolean;
+  attemptsAllowed?: number;
+  shuffleQuestions?: boolean;
+  showResults?: boolean;
+  passingScore?: number;
 }
 
 export type ModuleItem = LearningMaterial | Quiz;

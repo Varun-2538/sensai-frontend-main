@@ -28,7 +28,7 @@ export interface QuizEditorHandle {
 }
 
 export interface QuizQuestionConfig {
-    inputType: 'text' | 'code' | 'audio';
+    inputType: 'text' | 'code' | 'audio' | 'mcq';
     responseType: 'chat' | 'exam';
     correctAnswer?: any[];
     codingLanguages?: string[]; // For multiple coding languages
@@ -38,6 +38,32 @@ export interface QuizQuestionConfig {
     knowledgeBaseBlocks: any[]; // Add knowledge base content blocks
     linkedMaterialIds: string[]; // Add IDs of linked learning materials
     title: string;
+    
+    // Enhanced assessment features
+    mcqOptions?: MCQOption[];
+    allowMultipleSelection?: boolean;
+    shuffleOptions?: boolean;
+    timeLimitMinutes?: number;
+    points?: number;
+    testCases?: TestCase[];
+    memoryLimitMB?: number;
+    timeLimitSeconds?: number;
+}
+
+// MCQ Option for multiple choice questions
+export interface MCQOption {
+    id: string;
+    text: string;
+    isCorrect: boolean;
+}
+
+// Test case for coding questions
+export interface TestCase {
+    id: string;
+    inputData: string;
+    expectedOutput: string;
+    isHidden: boolean;
+    points: number;
 }
 
 export interface QuizQuestion {
@@ -141,4 +167,40 @@ export interface AIResponse {
     feedback: string;
     is_correct: boolean;
     scorecard?: ScorecardItem[];
+}
+
+export interface QuizEditorProps {
+    initialQuestions?: QuizQuestion[];
+    onChange?: (questions: QuizQuestion[]) => void;
+    isDarkMode?: boolean;
+    className?: string;
+    isPreviewMode?: boolean;
+    readOnly?: boolean;
+    taskId?: string;
+    status?: string;
+    onPublishSuccess?: (data: any) => void;
+    showPublishConfirmation?: boolean;
+    onPublishCancel?: () => void;
+    isEditMode?: boolean;
+    onSaveSuccess?: (data: any) => void;
+    taskType?: string;
+    currentQuestionId?: string;
+    onQuestionChange?: (questionId: string) => void;
+    onSubmitAnswer?: (questionId: string, answer: any) => void;
+    userId?: number;
+    schoolId?: string;
+    onValidationError?: (title: string, message: string) => void;
+    courseId?: string;
+    scheduledPublishAt?: string | null;
+    onQuestionChangeWithUnsavedScorecardChanges?: () => void;
+    // Assessment mode data
+    taskData?: {
+        assessment_mode?: boolean;
+        duration_minutes?: number;
+        integrity_monitoring?: boolean;
+        attempts_allowed?: number;
+        shuffle_questions?: boolean;
+        show_results?: boolean;
+        passing_score_percentage?: number;
+    };
 }

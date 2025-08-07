@@ -14,6 +14,7 @@ export default function Home() {
   const { courses, isLoading, error } = useCourses();
   const { schools } = useSchools();
   const [isCreateCourseDialogOpen, setIsCreateCourseDialogOpen] = useState(false);
+  const [showLearnerActions, setShowLearnerActions] = useState(false);
 
   // Memoize derived data to avoid recalculations
   const {
@@ -159,17 +160,54 @@ export default function Home() {
               {/* Display content based on courses availability */}
               <div className="mb-8">
                 {!hasTeachingCourses && !hasLearningCourses ? (
-                  // No courses at all - show universal placeholder
+                  // No courses at all - show role-based options
                   <div className="text-center py-12">
-                    <h2 className="text-2xl font-medium mb-2">What if your next big idea became a course?</h2>
-                    <p className="text-gray-400 mb-6">It might be easier than you think</p>
-                    <div className="flex justify-center gap-4">
-                      <button
-                        onClick={handleCreateCourseButtonClick}
-                        className="px-6 py-3 bg-white text-black text-sm font-medium rounded-full hover:opacity-90 transition-opacity inline-block cursor-pointer"
-                      >
-                        Create course
-                      </button>
+                    <h2 className="text-2xl font-medium mb-2">Welcome to SensAI</h2>
+                    <p className="text-gray-400 mb-8">Choose how you'd like to get started</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                      {/* Teacher/Admin Option */}
+                      <div className="bg-gray-900 p-8 rounded-lg border border-gray-800">
+                        <div className="text-center mb-6">
+                          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                          </div>
+                          <h3 className="text-xl font-semibold mb-2">I'm an Educator</h3>
+                          <p className="text-gray-400 mb-6">Create and manage courses, track student progress</p>
+                        </div>
+                        <button
+                          onClick={handleCreateCourseButtonClick}
+                          className="w-full px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Create Your First Course
+                        </button>
+                      </div>
+
+                      {/* Learner Option */}
+                      <div className="bg-gray-900 p-8 rounded-lg border border-gray-800">
+                        <div className="text-center mb-6">
+                          <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-xl font-semibold mb-2">I'm a Student</h3>
+                          <p className="text-gray-400 mb-6">Join courses, take assessments, and learn</p>
+                        </div>
+                        <div className="space-y-3">
+                          <button
+                            onClick={() => router.push('/student/join')}
+                            className="w-full px-6 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Join a Course
+                          </button>
+                          <p className="text-xs text-gray-500">Enter a course code or invitation link</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : !(hasLearningCourses && hasTeachingCourses) && (
