@@ -3,10 +3,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, Flag, Shield, AlertTriangle, X } from 'lucide-react';
+import { Clock, Shield, AlertTriangle, X, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import LearnerQuizView, { LearnerQuizViewProps } from './LearnerQuizView';
 import IntegratedProctorSystem from './IntegratedProctorSystem';  // Correct import as default
 import { useAuth } from '@/lib/auth';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AssessmentQuizViewProps extends LearnerQuizViewProps {
     assessmentMode?: boolean;
@@ -32,6 +36,7 @@ export default function AssessmentQuizView({
     const [timeRemaining, setTimeRemaining] = useState(durationMinutes * 60); // in seconds
     const [integritySessionId, setIntegritySessionId] = useState<string | null>(null);
     const [assessmentStarted, setAssessmentStarted] = useState(false);
+    const [showProctoring, setShowProctoring] = useState(true);
     
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -135,122 +140,161 @@ export default function AssessmentQuizView({
     }
 
     if (!assessmentStarted) {
-        // Assessment start screen
+        // Assessment start screen with improved layout
         return (
-            <div className="min-h-screen bg-black text-white flex items-center justify-center">
-                <div className="max-w-md mx-auto text-center p-8">
-                    <Shield className="w-16 h-16 text-purple-400 mx-auto mb-6" />
-                    <h1 className="text-2xl font-bold mb-4">Assessment Mode</h1>
-                    <p className="text-gray-300 mb-6">
-                        This quiz is in assessment mode with a {durationMinutes}-minute time limit.
-                        {integrityMonitoring && ' Integrity monitoring is enabled.'}
-                    </p>
-                    
-                    {integrityMonitoring && (
-                        <div className="bg-yellow-900/20 border border-yellow-900/50 rounded-lg p-4 mb-6">
-                            <h3 className="text-yellow-300 font-medium mb-2">Integrity Monitoring</h3>
-                            <p className="text-sm text-gray-300">
-                                This assessment will monitor your camera and browser activity.
-                                You'll be asked to grant permissions.
-                            </p>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+                <Card className="max-w-2xl w-full">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-purple-600" />
+                            Assessment Mode
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <p className="text-gray-600">This quiz is in assessment mode with a {durationMinutes}-minute time limit.{integrityMonitoring && ' Integrity monitoring is enabled.'}</p>
+                            <Alert>
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertDescription>
+                                    Please ensure:
+                                    <ul className="list-disc list-inside mt-2 space-y-1">
+                                        <li>Your camera and microphone are working</li>
+                                        <li>You are in a quiet, well-lit environment</li>
+                                        <li>Do not switch tabs or open other applications</li>
+                                        <li>Keep your face visible to the camera</li>
+                                        <li>Do not copy or paste from external sources</li>
+                                    </ul>
+                                </AlertDescription>
+                            </Alert>
+                            <div className="flex items-center gap-6 bg-gray-50 p-4 rounded-lg">
+                                <div className="text-center">
+                                    <div className="text-xs text-gray-500">Total Time</div>
+                                    <div className="font-mono font-bold">{formatTime(timeRemaining)}</div>
+                                </div>
+                                {integrityMonitoring && (
+                                    <div className="flex items-center gap-2">
+                                        <Shield className="h-4 w-4 text-green-600" />
+                                        <span className="text-sm text-green-700">Monitoring enabled</span>
+                                    </div>
+                                )}
+                            </div>
+                            <Button onClick={startAssessment} className="w-full" size="lg">Start Assessment</Button>
+                            {onExitAssessment && (
+                                <Button variant="outline" onClick={onExitAssessment} className="w-full">Back to Course</Button>
+                            )}
                         </div>
-                    )}
-                    
-                    <button
-                        onClick={startAssessment}
-                        className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                        Start Assessment
-                    </button>
-                    
-                    {onExitAssessment && (
-                        <button
-                            onClick={onExitAssessment}
-                            className="w-full mt-4 px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                        >
-                            Back to Course
-                        </button>
-                    )}
-                </div>
+                    </CardContent>
+                </Card>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-black text-white">
-            {/* Integrity Monitoring */}
-            {integrityMonitoring && (
-                <div className="fixed top-4 right-4 z-50">
-                    <IntegratedProctorSystem
-                        userId={user?.id || 0}
-                        cohortId={cohortId ? parseInt(cohortId) : undefined}
-                        taskId={taskId ? parseInt(taskId) : undefined}
-                        sensitivity="medium"
-                        autoStart={true}
-                        onSessionEnd={(sessionId) => setIntegritySessionId(sessionId)}
-                    />
-                </div>
-            )}
-
-            {/* Assessment Header */}
-            <div className="bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-40">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <h1 className="text-lg font-semibold">Assessment Mode</h1>
-                        {integrityMonitoring && integritySessionId && (
-                            <div className="flex items-center space-x-1 text-green-400">
-                                <Shield className="w-4 h-4" />
-                                <span className="text-sm">Monitored</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center space-x-4">
-                        {/* Timer */}
-                        <div className="flex items-center space-x-2">
-                            <Clock className="w-5 h-5" />
-                            <span className={`font-mono text-lg ${
-                                timeRemaining < 300 ? 'text-red-400 font-bold' : 'text-white'
-                            }`}>
-                                {formatTime(timeRemaining)}
-                            </span>
+        <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <div className="bg-white border-b shadow-sm sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between items-center py-4">
+                        <div>
+                            <h1 className="text-xl font-semibold text-gray-900">Assessment Mode</h1>
+                            <p className="text-sm text-gray-500">Timed assessment</p>
                         </div>
 
-                        {/* Exit Assessment */}
-                        {onExitAssessment && (
-                            <button
-                                onClick={() => {
-                                    if (confirm('Are you sure you want to exit? Your progress may be lost.')) {
-                                        onExitAssessment();
-                                    }
-                                }}
-                                className="flex items-center space-x-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                                <span className="text-sm">Exit</span>
-                            </button>
+                        <div className="flex items-center gap-4">
+                            {/* Monitoring Status */}
+                            {integrityMonitoring && (
+                                <div className="flex items-center gap-2">
+                                    <Shield className="h-4 w-4 text-green-600" />
+                                    <span className="text-sm text-green-700">Monitoring Active</span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowProctoring(!showProctoring)}
+                                        className="ml-2"
+                                    >
+                                        {showProctoring ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* Timer */}
+                            <div className="flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-gray-700" />
+                                <span className={`font-mono font-bold ${timeRemaining < 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                                    {formatTime(timeRemaining)}
+                                </span>
+                            </div>
+
+                            {/* Exit */}
+                            {onExitAssessment && (
+                                <Button
+                                    onClick={() => {
+                                        if (confirm('Are you sure you want to exit? Your progress may be lost.')) {
+                                            onExitAssessment();
+                                        }
+                                    }}
+                                    variant="destructive"
+                                    size="sm"
+                                >
+                                    <X className="w-4 h-4 mr-1" /> Exit
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Body */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    {/* Main Content */}
+                    <div className="lg:col-span-3 space-y-6">
+                        <Card>
+                            <CardContent className="p-0">
+                                <div className="relative">
+                                    <LearnerQuizView {...quizProps} isTestMode={true} />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {timeRemaining <= 300 && timeRemaining > 0 && (
+                            <Alert className="border-red-200">
+                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                                <AlertDescription className="text-red-700 font-medium">
+                                    {formatTime(timeRemaining)} remaining!
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+
+                    {/* Sidebar */}
+                    <div className="lg:col-span-1 space-y-6">
+                        {integrityMonitoring && showProctoring && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-sm">Integrated Proctoring System</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <IntegratedProctorSystem
+                                        userId={user?.id || 0}
+                                        cohortId={cohortId ? parseInt(cohortId) : undefined}
+                                        taskId={taskId ? parseInt(taskId) : undefined}
+                                        sensitivity="medium"
+                                        autoStart={assessmentStarted}
+                                        onSessionEnd={(sessionId) => setIntegritySessionId(sessionId)}
+                                    />
+                                    {integritySessionId && (
+                                        <div className="mt-3 flex items-center gap-2 text-green-700 text-sm">
+                                            <CheckCircle className="h-4 w-4" />
+                                            <span>Monitoring active</span>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
                         )}
                     </div>
                 </div>
             </div>
-
-            {/* Quiz Content */}
-            <div className="relative">
-                <LearnerQuizView 
-                    {...quizProps}
-                    isTestMode={true}
-                />
-            </div>
-
-            {/* Low Time Warning */}
-            {timeRemaining <= 300 && timeRemaining > 0 && (
-                <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50">
-                    <div className="flex items-center space-x-2">
-                        <AlertTriangle className="w-5 h-5" />
-                        <span className="font-medium">⚠️ {formatTime(timeRemaining)} remaining!</span>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
