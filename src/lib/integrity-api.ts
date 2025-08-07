@@ -5,7 +5,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
 
 export interface ProctorEvent {
-  type: 'face_not_detected' | 'multiple_faces' | 'looking_away' | 'head_movement' | 'pose_change' | 'tab_switch' | 'window_blur' | 'copy_paste' | 'suspicious_activity';
+  type: 'face_not_detected' | 'multiple_faces' | 'looking_away' | 'head_movement' | 'pose_change' | 'tab_switch' | 'window_blur' | 'copy_paste' | 'suspicious_activity' | 'mouse_drift';
   timestamp: number;
   severity: 'low' | 'medium' | 'high';
   data: any;
@@ -231,6 +231,43 @@ class IntegrityAPI {
   }> {
     const params = includeDetails ? '?include_details=true' : '';
     return this.makeRequest(`/cohorts/${cohortId}/integrity-overview${params}`);
+  }
+
+  // Analysis
+  async analyzeGaze(data: {
+    session_uuid: string;
+    user_id: number;
+    timestamp?: string; // ISO optional
+    euler_angles?: { yaw?: number; pitch?: number; roll?: number };
+    face_landmarks?: Array<{ x: number; y: number; z?: number }>;
+    config?: Record<string, any>;
+  }): Promise<{
+    looking_away: boolean;
+    confidence: number;
+    metrics: Record<string, any>;
+  }> {
+    return this.makeRequest('/analyze/gaze', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async analyzeMouseDrift(data: {
+    session_uuid: string;
+    user_id: number;
+    samples: Array<{ t: number; x: number; y: number }>;
+    screen_width?: number;
+    screen_height?: number;
+    config?: Record<string, any>;
+  }): Promise<{
+    is_drift: boolean;
+    drift_score: number;
+    metrics: Record<string, any>;
+  }> {
+    return this.makeRequest('/analyze/mouse-drift', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Health Check
