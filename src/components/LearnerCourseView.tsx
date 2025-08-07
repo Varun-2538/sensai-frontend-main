@@ -22,6 +22,12 @@ const DynamicLearnerQuizView = dynamic(
     { ssr: false }
 );
 
+// Dynamic import for AssessmentQuizView  
+const DynamicAssessmentQuizView = dynamic(
+    () => import("./AssessmentQuizView"),
+    { ssr: false }
+);
+
 interface LearnerCourseViewProps {
     modules: Module[];
     completedTaskIds?: Record<string, boolean>;
@@ -349,7 +355,15 @@ export default function LearnerCourseView({
 
                 updatedItem = {
                     ...item,
-                    questions: formattedQuestions
+                    questions: formattedQuestions,
+                    // Extract assessment mode properties from API response
+                    assessmentMode: data.assessment_mode || false,
+                    durationMinutes: data.duration_minutes || 60,
+                    integrityMonitoring: data.integrity_monitoring || false,
+                    attemptsAllowed: data.attempts_allowed || 1,
+                    shuffleQuestions: data.shuffle_questions || false,
+                    showResults: data.show_results !== undefined ? data.show_results : true,
+                    passingScore: data.passing_score_percentage || 60
                 };
 
                 // Set active question ID if provided, otherwise set to first question
@@ -1215,22 +1229,49 @@ export default function LearnerCourseView({
                                         )}
                                         {(activeItem?.type === 'quiz') && (
                                             <>
-                                                <DynamicLearnerQuizView
-                                                    questions={activeItem.questions || []}
-                                                    readOnly={true}
-                                                    viewOnly={viewOnly}
-                                                    currentQuestionId={activeQuestionId || undefined}
-                                                    onQuestionChange={activateQuestion}
-                                                    onSubmitAnswer={handleQuizAnswerSubmit}
-                                                    userId={userId}
-                                                    isTestMode={isTestMode}
-                                                    taskId={activeItem.id}
-                                                    completedQuestionIds={completedQuestions}
-                                                    isDarkMode={true}
-                                                    onAiRespondingChange={handleAiRespondingChange}
-                                                    className={`${isSidebarOpen ? 'sidebar-visible' : ''}`}
-                                                    isAdminView={isAdminView}
-                                                />
+                                                {activeItem.assessmentMode ? (
+                                                    <DynamicAssessmentQuizView
+                                                        questions={activeItem.questions || []}
+                                                        assessmentMode={true}
+                                                        durationMinutes={activeItem.durationMinutes || 60}
+                                                        integrityMonitoring={activeItem.integrityMonitoring || false}
+                                                        taskId={activeItem.id}
+                                                        readOnly={true}
+                                                        viewOnly={viewOnly}
+                                                        currentQuestionId={activeQuestionId || undefined}
+                                                        onQuestionChange={activateQuestion}
+                                                        onSubmitAnswer={handleQuizAnswerSubmit}
+                                                        userId={userId}
+                                                        isTestMode={true}
+                                                        completedQuestionIds={completedQuestions}
+                                                        isDarkMode={true}
+                                                        onAiRespondingChange={handleAiRespondingChange}
+                                                        className={`${isSidebarOpen ? 'sidebar-visible' : ''}`}
+                                                        isAdminView={isAdminView}
+                                                        onExitAssessment={() => setIsDialogOpen(false)}
+                                                        onTimeExpired={() => {
+                                                            alert('Time is up! The assessment will be submitted automatically.');
+                                                            // Auto-submit logic could be added here
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <DynamicLearnerQuizView
+                                                        questions={activeItem.questions || []}
+                                                        readOnly={true}
+                                                        viewOnly={viewOnly}
+                                                        currentQuestionId={activeQuestionId || undefined}
+                                                        onQuestionChange={activateQuestion}
+                                                        onSubmitAnswer={handleQuizAnswerSubmit}
+                                                        userId={userId}
+                                                        isTestMode={isTestMode}
+                                                        taskId={activeItem.id}
+                                                        completedQuestionIds={completedQuestions}
+                                                        isDarkMode={true}
+                                                        onAiRespondingChange={handleAiRespondingChange}
+                                                        className={`${isSidebarOpen ? 'sidebar-visible' : ''}`}
+                                                        isAdminView={isAdminView}
+                                                    />
+                                                )}
                                             </>
                                         )}
                                     </>
