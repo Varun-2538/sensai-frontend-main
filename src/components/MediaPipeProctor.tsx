@@ -51,6 +51,7 @@ export default function MediaPipeProctor({
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentEvents, setCurrentEvents] = useState<ProctorEvent[]>([]);
+  const [videoState, setVideoState] = useState({ playing: false, dimensions: { width: 0, height: 0 } });
   
   // Monitoring state
   const [faceBaseline, setFaceBaseline] = useState<any>(null);
@@ -63,24 +64,27 @@ export default function MediaPipeProctor({
     const loadMediaPipeScripts = async () => {
       setIsLoading(true);
       try {
-        // Load MediaPipe vision bundle
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js';
-        script.crossOrigin = 'anonymous';
-        
-        script.onload = () => {
-          console.log('MediaPipe scripts loaded');
+        // Check if MediaPipe is already loaded
+        if (window.FilesetResolver) {
+          console.log('MediaPipe already loaded');
           initializeMediaPipe();
-        };
+          return;
+        }
+
+        // Import MediaPipe from the npm package
+        const mediapipeModule = await import('@mediapipe/tasks-vision');
         
-        script.onerror = () => {
-          setError('Failed to load MediaPipe scripts');
-          setIsLoading(false);
-        };
+        // Expose the imported objects on window for compatibility
+        window.FilesetResolver = mediapipeModule.FilesetResolver;
+        window.FaceLandmarker = mediapipeModule.FaceLandmarker;
+        window.FaceDetector = mediapipeModule.FaceDetector;
+        window.PoseLandmarker = mediapipeModule.PoseLandmarker;
         
-        document.head.appendChild(script);
+        console.log('MediaPipe modules imported successfully');
+        initializeMediaPipe();
       } catch (err) {
-        setError('Error loading MediaPipe');
+        console.error('Error loading MediaPipe:', err);
+        setError(`Error loading MediaPipe: ${err}`);
         setIsLoading(false);
       }
     };
@@ -104,48 +108,67 @@ export default function MediaPipeProctor({
         throw new Error('MediaPipe not loaded');
       }
 
+      console.log('Initializing MediaPipe models...');
+      
       const vision = await window.FilesetResolver.forVisionTasks(
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
       );
 
+      console.log('Vision tasks resolver initialized');
+
       // Initialize Face Landmarker for detailed facial analysis
-      const faceLandmarkerInstance = await window.FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-          delegate: 'GPU',
-        },
-        outputFaceBlendshapes: true,
-        outputFacialTransformationMatrixes: true,
-        runningMode: 'VIDEO',
-        numFaces: 5
-      });
+      try {
+        const faceLandmarkerInstance = await window.FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+            delegate: 'CPU', // Use CPU instead of GPU for better compatibility
+          },
+          outputFaceBlendshapes: false, // Disable to reduce complexity
+          outputFacialTransformationMatrixes: false, // Disable to reduce complexity
+          runningMode: 'VIDEO',
+          numFaces: 3 // Reduce from 5 to 3 for better performance
+        });
+        setFaceLandmarker(faceLandmarkerInstance);
+        console.log('Face Landmarker initialized');
+      } catch (err) {
+        console.warn('Face Landmarker failed to initialize:', err);
+      }
 
       // Initialize Face Detector for basic face detection
-      const faceDetectorInstance = await window.FaceDetector.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO'
-      });
+      try {
+        const faceDetectorInstance = await window.FaceDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+            delegate: 'CPU', // Use CPU for better compatibility
+          },
+          runningMode: 'VIDEO'
+        });
+        setFaceDetector(faceDetectorInstance);
+        console.log('Face Detector initialized');
+      } catch (err) {
+        console.warn('Face Detector failed to initialize:', err);
+      }
 
       // Initialize Pose Landmarker for body pose detection
-      const poseLandmarkerInstance = await window.PoseLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO',
-        numPoses: 2
-      });
+      try {
+        const poseLandmarkerInstance = await window.PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+            delegate: 'CPU', // Use CPU for better compatibility
+          },
+          runningMode: 'VIDEO',
+          numPoses: 1 // Reduce from 2 to 1 for better performance
+        });
+        setPoseLandmarker(poseLandmarkerInstance);
+        console.log('Pose Landmarker initialized');
+      } catch (err) {
+        console.warn('Pose Landmarker failed to initialize:', err);
+      }
 
-      setFaceLandmarker(faceLandmarkerInstance);
-      setFaceDetector(faceDetectorInstance);
-      setPoseLandmarker(poseLandmarkerInstance);
       setIsInitialized(true);
       setIsLoading(false);
       
-      console.log('MediaPipe models initialized successfully');
+      console.log('MediaPipe models initialization completed');
     } catch (err) {
       console.error('MediaPipe initialization error:', err);
       setError(`Failed to initialize MediaPipe: ${err}`);
@@ -156,6 +179,7 @@ export default function MediaPipeProctor({
   // Start camera and monitoring
   const startMonitoring = async () => {
     try {
+      console.log('Requesting camera access...');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -165,17 +189,66 @@ export default function MediaPipeProctor({
         audio: false
       });
 
+      console.log('Camera access granted, stream:', stream);
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         
-        videoRef.current.onloadedmetadata = () => {
+        // Add multiple event listeners to ensure video plays
+        videoRef.current.onloadedmetadata = async () => {
+          console.log('Video metadata loaded');
           if (videoRef.current) {
-            videoRef.current.play();
-            setIsMonitoring(true);
-            startAnalysis();
+            try {
+              await videoRef.current.play();
+              console.log('Video playback started');
+              setIsMonitoring(true);
+              startAnalysis();
+            } catch (playError) {
+              console.error('Video play error:', playError);
+              setError('Failed to start video playback. Please try again.');
+            }
           }
         };
+
+        videoRef.current.oncanplay = () => {
+          console.log('Video can play');
+        };
+
+        videoRef.current.onplaying = () => {
+          console.log('Video is playing');
+          setVideoState(prev => ({ ...prev, playing: true }));
+        };
+
+        videoRef.current.onloadeddata = () => {
+          console.log('Video data loaded');
+          if (videoRef.current) {
+            setVideoState(prev => ({ 
+              ...prev, 
+              dimensions: { 
+                width: videoRef.current!.videoWidth, 
+                height: videoRef.current!.videoHeight 
+              }
+            }));
+          }
+        };
+
+        videoRef.current.onerror = (err) => {
+          console.error('Video error:', err);
+          setError('Video playback error occurred.');
+        };
+
+        // Fallback: try to play immediately if metadata is already loaded
+        if (videoRef.current.readyState >= 2) {
+          console.log('Video ready state sufficient, attempting immediate play');
+          try {
+            await videoRef.current.play();
+            setIsMonitoring(true);
+            startAnalysis();
+          } catch (playError) {
+            console.error('Immediate play failed:', playError);
+          }
+        }
       }
     } catch (err) {
       setError('Failed to access camera. Please ensure camera permissions are granted.');
@@ -195,7 +268,7 @@ export default function MediaPipeProctor({
   // Main analysis loop
   const startAnalysis = () => {
     const analyze = () => {
-      if (!isMonitoring || !videoRef.current || !faceLandmarker || !faceDetector || !poseLandmarker) {
+      if (!isMonitoring || !videoRef.current) {
         return;
       }
 
@@ -210,22 +283,42 @@ export default function MediaPipeProctor({
       lastFrameTime.current = currentTime;
 
       try {
-        // Face Detection
-        const faceResults = faceDetector.detectForVideo(videoRef.current, currentTime);
-        analyzeFaces(faceResults, currentTime);
+        let faceResults = null;
 
-        // Face Landmarks (if faces detected)
-        if (faceResults.detections?.length > 0) {
-          const landmarkResults = faceLandmarker.detectForVideo(videoRef.current, currentTime);
-          analyzeFaceLandmarks(landmarkResults, currentTime);
+        // Face Detection (if available)
+        if (faceDetector) {
+          try {
+            faceResults = faceDetector.detectForVideo(videoRef.current, currentTime);
+            analyzeFaces(faceResults, currentTime);
+          } catch (err) {
+            console.warn('Face detection error:', err);
+          }
         }
 
-        // Pose Detection
-        const poseResults = poseLandmarker.detectForVideo(videoRef.current, currentTime);
-        analyzePose(poseResults, currentTime);
+        // Face Landmarks (if faces detected and landmarker available)
+        if (faceResults?.detections?.length > 0 && faceLandmarker) {
+          try {
+            const landmarkResults = faceLandmarker.detectForVideo(videoRef.current, currentTime);
+            analyzeFaceLandmarks(landmarkResults, currentTime);
+          } catch (err) {
+            console.warn('Face landmarks error:', err);
+          }
+        }
+
+        // Pose Detection (if available)
+        if (poseLandmarker) {
+          try {
+            const poseResults = poseLandmarker.detectForVideo(videoRef.current, currentTime);
+            analyzePose(poseResults, currentTime);
+          } catch (err) {
+            console.warn('Pose detection error:', err);
+          }
+        }
 
         // Visualize on canvas
-        visualizeResults(faceResults, currentTime);
+        if (faceResults) {
+          visualizeResults(faceResults, currentTime);
+        }
 
       } catch (err) {
         console.error('Analysis error:', err);
@@ -460,7 +553,7 @@ export default function MediaPipeProctor({
               {!isMonitoring ? (
                 <Button 
                   onClick={startMonitoring} 
-                  disabled={!isInitialized || isLoading}
+                  disabled={isLoading}
                   className="flex items-center gap-2"
                 >
                   <Camera className="h-4 w-4" />
@@ -478,19 +571,51 @@ export default function MediaPipeProctor({
               )}
             </div>
 
+            {/* MediaPipe Status */}
+            {isInitialized && (
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>MediaPipe Status:</p>
+                <div className="flex gap-4 text-xs">
+                  <span className={faceDetector ? 'text-green-600' : 'text-red-600'}>
+                    Face Detection: {faceDetector ? '✓' : '✗'}
+                  </span>
+                  <span className={faceLandmarker ? 'text-green-600' : 'text-red-600'}>
+                    Face Landmarks: {faceLandmarker ? '✓' : '✗'}
+                  </span>
+                  <span className={poseLandmarker ? 'text-green-600' : 'text-red-600'}>
+                    Pose Detection: {poseLandmarker ? '✓' : '✗'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Video and Canvas */}
             {isMonitoring && (
-              <div className="relative w-full max-w-2xl mx-auto">
+              <div className="relative w-full max-w-2xl mx-auto bg-black rounded-lg overflow-hidden">
                 <video
                   ref={videoRef}
-                  className="w-full h-auto rounded-lg border"
+                  className="w-full h-auto rounded-lg border-2 border-green-500"
                   playsInline
+                  autoPlay
                   muted
+                  controls={false}
+                  style={{ 
+                    minHeight: '300px',
+                    objectFit: 'cover'
+                  }}
                 />
                 <canvas
                   ref={canvasRef}
                   className="absolute top-0 left-0 w-full h-full pointer-events-none"
                 />
+                
+                {/* Video Status Overlay */}
+                <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
+                  {streamRef.current ? 
+                    `🟢 Live - ${streamRef.current.getTracks().length} track(s)` : 
+                    '🔴 No Stream'
+                  }
+                </div>
               </div>
             )}
 
@@ -523,10 +648,40 @@ export default function MediaPipeProctor({
             )}
 
             {/* Status */}
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 space-y-1">
               <p>Session ID: {sessionId}</p>
               <p>Sensitivity: {sensitivity}</p>
               <p>Status: {isMonitoring ? 'Monitoring Active' : 'Monitoring Inactive'}</p>
+              {streamRef.current && (
+                <div className="bg-green-50 p-2 rounded">
+                  <p className="text-green-800 font-medium">📹 Camera Status:</p>
+                  <p className="text-green-700 text-xs">
+                    • Stream: {streamRef.current.active ? 'Active' : 'Inactive'}
+                  </p>
+                  <p className="text-green-700 text-xs">
+                    • Tracks: {streamRef.current.getTracks().length}
+                  </p>
+                  {streamRef.current.getTracks().map((track, index) => (
+                    <p key={index} className="text-green-700 text-xs">
+                      • {track.kind}: {track.enabled ? 'Enabled' : 'Disabled'} ({track.readyState})
+                    </p>
+                  ))}
+                </div>
+              )}
+              {videoRef.current && (
+                <div className="bg-blue-50 p-2 rounded">
+                  <p className="text-blue-800 font-medium">🎥 Video Element:</p>
+                  <p className="text-blue-700 text-xs">
+                    • Ready State: {videoRef.current.readyState} / 4
+                  </p>
+                  <p className="text-blue-700 text-xs">
+                    • Paused: {videoRef.current.paused ? 'Yes' : 'No'}
+                  </p>
+                  <p className="text-blue-700 text-xs">
+                    • Dimensions: {videoRef.current.videoWidth}x{videoRef.current.videoHeight}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>

@@ -20,6 +20,35 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // MediaPipe configuration
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+      };
+    }
+    return config;
+  },
+  // Headers for MediaPipe WASM and scripts
+  async headers() {
+    return [
+      {
+        source: '/(.*)\\.(wasm|js)',
+        headers: [
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
