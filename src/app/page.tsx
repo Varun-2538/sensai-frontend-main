@@ -14,8 +14,6 @@ export default function Home() {
   const { courses, isLoading, error } = useCourses();
   const { schools } = useSchools();
   const [isCreateCourseDialogOpen, setIsCreateCourseDialogOpen] = useState(false);
-  const [showLearnerActions, setShowLearnerActions] = useState(false);
-  const [showLearnerActions, setShowLearnerActions] = useState(false);
 
   // Memoize derived data to avoid recalculations
   const {
