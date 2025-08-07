@@ -15,6 +15,7 @@ export default function Home() {
   const { schools } = useSchools();
   const [isCreateCourseDialogOpen, setIsCreateCourseDialogOpen] = useState(false);
   const [showLearnerActions, setShowLearnerActions] = useState(false);
+  const [showLearnerActions, setShowLearnerActions] = useState(false);
 
   // Memoize derived data to avoid recalculations
   const {
@@ -160,6 +161,7 @@ export default function Home() {
               {/* Display content based on courses availability */}
               <div className="mb-8">
                 {!hasTeachingCourses && !hasLearningCourses ? (
+                  // No courses at all - show role-based options
                   // No courses at all - show role-based options
                   <div className="text-center py-12">
                     <h2 className="text-2xl font-medium mb-2">Welcome to SensAI</h2>
