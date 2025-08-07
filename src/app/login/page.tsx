@@ -13,7 +13,6 @@ function LoginContent() {
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") || "/";
     const role = searchParams.get("role") || null;
-    const role = searchParams.get("role") || null;
 
     // Redirect if already authenticated
     useEffect(() => {
@@ -87,35 +86,6 @@ function LoginContent() {
                                 </p>
                             </>
                         )}
-                        {role === 'student' ? (
-                            <>
-                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
-                                    <span className="text-white">Learn </span>
-                                    <span className="text-green-400">smarter</span>
-                                </h1>
-                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
-                                    <span className="text-white">Achieve </span>
-                                    <span className="text-green-400">more</span>
-                                </h1>
-                                <p className="text-lg md:text-xl text-gray-300 mt-6 mb-6 max-w-md">
-                                    Join interactive courses, take AI-powered assessments, and learn with personalized feedback that helps you master concepts at your own pace.
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
-                                    <span className="text-white">Teach </span>
-                                    <span className="text-purple-400">smarter</span>
-                                </h1>
-                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
-                                    <span className="text-white">Reach </span>
-                                    <span className="text-purple-400">further</span>
-                                </h1>
-                                <p className="text-lg md:text-xl text-gray-300 mt-6 mb-6 max-w-md">
-                                    SensAI is an AI-powered LMS that coaches every learner by asking questions without giving away the answer and grades their responses like your favourite teaching assistant so that you can maximize your reach without sacrificing quality
-                                </p>
-                            </>
-                        )}
                     </div>
 
                     {/* Login card - spans 5 columns on desktop */}
@@ -148,27 +118,7 @@ function LoginContent() {
                                     />
                                 </svg>
                                 {role === 'student' ? 'Sign in as Student' : 'Sign in with Google'}
-                                {role === 'student' ? 'Sign in as Student' : 'Sign in with Google'}
                             </button>
-
-                            {/* Role toggle */}
-                            <div className="text-center mt-4 mx-4">
-                                {role === 'student' ? (
-                                    <p className="text-xs text-gray-500">
-                                        Are you an educator?{' '}
-                                        <Link href="/login" className="text-purple-400 hover:text-purple-300">
-                                            Sign in as Teacher
-                                        </Link>
-                                    </p>
-                                ) : (
-                                    <p className="text-xs text-gray-500">
-                                        Are you a student?{' '}
-                                        <Link href="/login?role=student" className="text-green-400 hover:text-green-300">
-                                            Sign in as Student
-                                        </Link>
-                                    </p>
-                                )}
-                            </div>
 
                             {/* Role toggle */}
                             <div className="text-center mt-4 mx-4">

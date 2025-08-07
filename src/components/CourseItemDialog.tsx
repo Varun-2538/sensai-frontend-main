@@ -14,6 +14,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { formatScheduleDate } from "@/lib/utils/dateFormat";
 import { useAuth } from "@/lib/auth";
+import { mapQuizDataFromAPI } from "@/utils/quizDataMapping";
 
 // Dynamically import the editor components
 const DynamicLearningMaterialEditor = dynamic(
@@ -1018,40 +1019,26 @@ const CourseItemDialog: React.FC<CourseItemDialogProps> = ({
                                 }}
                                 onSaveSuccess={(updatedData) => {
                                     // Handle save success
-                                    if (updatedData) {
-                                        // Update the activeItem with the updated title and questions
-                                        if (activeItem) {
-                                            activeItem.title = updatedData.title;
-                                            // Add the scheduled_publish_at value when saving
-                                            activeItem.scheduled_publish_at = updatedData.scheduled_publish_at;
+                                    if (updatedData && activeItem) {
+                                        // Use mapping utility to properly convert backend data to frontend format
+                                        const mappedData = mapQuizDataFromAPI(updatedData);
+                                        
+                                        // Update the activeItem with mapped data
+                                        activeItem.title = mappedData.title;
+                                        activeItem.scheduled_publish_at = mappedData.scheduled_publish_at;
 
-                                            if (updatedData.questions) {
-                                                activeItem.questions = updatedData.questions;
-                                            }
-
-                                            // Update assessment mode properties to persist across navigation
-                                            if (updatedData.assessment_mode !== undefined) {
-                                                activeItem.assessmentMode = updatedData.assessment_mode;
-                                            }
-                                            if (updatedData.duration_minutes !== undefined) {
-                                                activeItem.durationMinutes = updatedData.duration_minutes;
-                                            }
-                                            if (updatedData.integrity_monitoring !== undefined) {
-                                                activeItem.integrityMonitoring = updatedData.integrity_monitoring;
-                                            }
-                                            if (updatedData.attempts_allowed !== undefined) {
-                                                activeItem.attemptsAllowed = updatedData.attempts_allowed;
-                                            }
-                                            if (updatedData.shuffle_questions !== undefined) {
-                                                activeItem.shuffleQuestions = updatedData.shuffle_questions;
-                                            }
-                                            if (updatedData.show_results !== undefined) {
-                                                activeItem.showResults = updatedData.show_results;
-                                            }
-                                            if (updatedData.passing_score_percentage !== undefined) {
-                                                activeItem.passingScore = updatedData.passing_score_percentage;
-                                            }
+                                        if (mappedData.questions) {
+                                            activeItem.questions = mappedData.questions;
                                         }
+
+                                        // Update all assessment mode properties using mapping
+                                        activeItem.assessmentMode = mappedData.assessmentMode;
+                                        activeItem.durationMinutes = mappedData.durationMinutes;
+                                        activeItem.integrityMonitoring = mappedData.integrityMonitoring;
+                                        activeItem.attemptsAllowed = mappedData.attemptsAllowed;
+                                        activeItem.shuffleQuestions = mappedData.shuffleQuestions;
+                                        activeItem.showResults = mappedData.showResults;
+                                        activeItem.passingScore = mappedData.passingScore;
 
                                         // Call onSaveItem to exit edit mode
                                         onSaveItem();
@@ -1067,43 +1054,31 @@ const CourseItemDialog: React.FC<CourseItemDialogProps> = ({
                                         // Properly update the UI state first
                                         // This will transform the publish button to edit button
                                         if (activeItem && updatedData.status === 'published') {
+                                            // Use mapping utility to properly convert backend data to frontend format
+                                            const mappedData = mapQuizDataFromAPI(updatedData);
+                                            
                                             activeItem.status = 'published';
-                                            activeItem.title = updatedData.title;
-                                            // Add the scheduled_publish_at value from updatedData to activeItem
-                                            activeItem.scheduled_publish_at = updatedData.scheduled_publish_at;
+                                            activeItem.title = mappedData.title;
+                                            activeItem.scheduled_publish_at = mappedData.scheduled_publish_at;
 
-                                            if (updatedData.scheduled_publish_at) {
-                                                setScheduledDate(new Date(updatedData.scheduled_publish_at));
+                                            if (mappedData.scheduled_publish_at) {
+                                                setScheduledDate(new Date(mappedData.scheduled_publish_at));
                                             } else {
                                                 setScheduledDate(null);
                                             }
 
-                                            if (updatedData.questions) {
-                                                activeItem.questions = updatedData.questions;
+                                            if (mappedData.questions) {
+                                                activeItem.questions = mappedData.questions;
                                             }
 
-                                            // Update assessment mode properties to persist across navigation
-                                            if (updatedData.assessment_mode !== undefined) {
-                                                activeItem.assessmentMode = updatedData.assessment_mode;
-                                            }
-                                            if (updatedData.duration_minutes !== undefined) {
-                                                activeItem.durationMinutes = updatedData.duration_minutes;
-                                            }
-                                            if (updatedData.integrity_monitoring !== undefined) {
-                                                activeItem.integrityMonitoring = updatedData.integrity_monitoring;
-                                            }
-                                            if (updatedData.attempts_allowed !== undefined) {
-                                                activeItem.attemptsAllowed = updatedData.attempts_allowed;
-                                            }
-                                            if (updatedData.shuffle_questions !== undefined) {
-                                                activeItem.shuffleQuestions = updatedData.shuffle_questions;
-                                            }
-                                            if (updatedData.show_results !== undefined) {
-                                                activeItem.showResults = updatedData.show_results;
-                                            }
-                                            if (updatedData.passing_score_percentage !== undefined) {
-                                                activeItem.passingScore = updatedData.passing_score_percentage;
-                                            }
+                                            // Update all assessment mode properties using mapping
+                                            activeItem.assessmentMode = mappedData.assessmentMode;
+                                            activeItem.durationMinutes = mappedData.durationMinutes;
+                                            activeItem.integrityMonitoring = mappedData.integrityMonitoring;
+                                            activeItem.attemptsAllowed = mappedData.attemptsAllowed;
+                                            activeItem.shuffleQuestions = mappedData.shuffleQuestions;
+                                            activeItem.showResults = mappedData.showResults;
+                                            activeItem.passingScore = mappedData.passingScore;
                                         }
 
                                         // Update will be handled by the parent component

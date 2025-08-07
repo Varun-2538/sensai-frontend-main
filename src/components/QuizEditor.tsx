@@ -25,6 +25,10 @@ import { questionTypeOptions, answerTypeOptions, codingLanguageOptions, question
 import { QuizEditorHandle, QuizQuestionConfig, QuizQuestion, QuizEditorProps, APIQuestionResponse, ScorecardCriterion } from "../types";
 // Add import for LearningMaterialLinker
 import LearningMaterialLinker from "./LearningMaterialLinker";
+// Import data mapping utilities for assessment mode
+import { mapQuizDataForAPI, debugDataMapping } from "@/utils/quizDataMapping";
+// Import debounced save hook
+import { useDebouncedSave } from "@/hooks/useDebouncedSave";
 // Import Toast component
 import Toast from "./Toast";
 // Import Tooltip component
@@ -501,6 +505,9 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
     const [shuffleQuestions, setShuffleQuestions] = useState(false);
     const [showResults, setShowResults] = useState(true);
     const [passingScore, setPassingScore] = useState(60);
+    const [isSavingAssessment, setIsSavingAssessment] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
     // Initialize assessment settings from taskData when component mounts or taskData changes
     useEffect(() => {
@@ -515,18 +522,18 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
         }
     }, [taskData]);
 
-    // Auto-save assessment mode changes with debouncing
-    const assessmentChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    
-    const saveAssessmentChanges = useCallback(async () => {
-        if (!taskId || readOnly) return;
-        
+    // Save function for assessment mode changes
+    const handleSave = useCallback(async () => {
+        if (!hasUnsavedChanges || !taskId || readOnly) return;
+
         try {
+            setIsSavingAssessment(true);
+            setSaveStatus('saving');
+            
             // Get the current title from the dialog
             const dialogTitleElement = document.querySelector('.dialog-content-editor')?.parentElement?.querySelector('h2');
             const currentTitle = dialogTitleElement?.textContent || '';
 
-            // Make POST request to save assessment changes immediately
             const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/${taskId}/quiz`, {
                 method: 'POST',
                 headers: {
@@ -562,38 +569,95 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
             });
 
             if (response.ok) {
-                console.log('Assessment mode settings saved successfully');
+                const data = await response.json();
+                console.log('Assessment mode settings saved successfully', data);
+                
+                // Call onSaveSuccess if provided to update parent component state
+                if (onSaveSuccess && data) {
+                    onSaveSuccess(data);
+                }
+                
+                setHasUnsavedChanges(false);
+                setSaveStatus('saved');
+                
+                // Reset status after 2 seconds
+                setTimeout(() => setSaveStatus('idle'), 2000);
+            } else {
+                const errorData = await response.json();
+                console.error('Failed to save assessment settings:', errorData);
+                throw new Error(`Failed to save: ${errorData.detail || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error saving assessment mode changes:', error);
+            setSaveStatus('error');
+            setTimeout(() => setSaveStatus('idle'), 3000);
+        } finally {
+            setIsSavingAssessment(false);
         }
-    }, [taskId, readOnly, questions, scheduledPublishAt, status, assessmentMode, durationMinutes, integrityMonitoring, attemptsAllowed, shuffleQuestions, showResults, passingScore]);
+    }, [taskId, readOnly, questions, scheduledPublishAt, status, assessmentMode, durationMinutes, integrityMonitoring, attemptsAllowed, shuffleQuestions, showResults, passingScore, onSaveSuccess, hasUnsavedChanges]);
 
-    // Debounced auto-save for assessment mode changes
-    const debouncedSaveAssessment = useCallback(() => {
-        if (assessmentChangeTimeoutRef.current) {
-            clearTimeout(assessmentChangeTimeoutRef.current);
-        }
-        assessmentChangeTimeoutRef.current = setTimeout(() => {
-            saveAssessmentChanges();
-        }, 1000); // Save after 1 second of no changes
-    }, [saveAssessmentChanges]);
+    // Debounced save hook
+    const { debouncedSave, saveImmediately, cancelSave } = useDebouncedSave({
+        delay: 2000, // 2 second delay
+        onSave: handleSave,
+        enabled: !readOnly && hasUnsavedChanges
+    });
 
-    // Add effects to auto-save when assessment settings change
+
+
+    // Handle quiz property changes with debounced save
+    const handleQuizChange = useCallback((updates: Partial<{
+        assessmentMode: boolean;
+        durationMinutes: number;
+        integrityMonitoring: boolean;
+        attemptsAllowed: number;
+        shuffleQuestions: boolean;
+        showResults: boolean;
+        passingScore: number;
+    }>) => {
+        // Update local state
+        if (updates.assessmentMode !== undefined) setAssessmentMode(updates.assessmentMode);
+        if (updates.durationMinutes !== undefined) setDurationMinutes(updates.durationMinutes);
+        if (updates.integrityMonitoring !== undefined) setIntegrityMonitoring(updates.integrityMonitoring);
+        if (updates.attemptsAllowed !== undefined) setAttemptsAllowed(updates.attemptsAllowed);
+        if (updates.shuffleQuestions !== undefined) setShuffleQuestions(updates.shuffleQuestions);
+        if (updates.showResults !== undefined) setShowResults(updates.showResults);
+        if (updates.passingScore !== undefined) setPassingScore(updates.passingScore);
+        
+        setHasUnsavedChanges(true);
+        
+        // Trigger debounced save
+        debouncedSave();
+    }, [debouncedSave]);
+
+    // Handle assessment mode toggle specifically
+    const handleAssessmentModeToggle = useCallback((enabled: boolean) => {
+        handleQuizChange({ assessmentMode: enabled });
+    }, [handleQuizChange]);
+
+    // Handle other assessment settings
+    const handleAssessmentSettingChange = useCallback((key: keyof {
+        durationMinutes: number;
+        integrityMonitoring: boolean;
+        attemptsAllowed: number;
+        shuffleQuestions: boolean;
+        showResults: boolean;
+        passingScore: number;
+    }, value: any) => {
+        handleQuizChange({ [key]: value });
+    }, [handleQuizChange]);
+
+    // Save immediately when leaving edit mode
     useEffect(() => {
-        if (taskId && !readOnly) {
-            debouncedSaveAssessment();
+        if (!isEditMode && hasUnsavedChanges) {
+            saveImmediately();
         }
-    }, [assessmentMode, durationMinutes, integrityMonitoring, attemptsAllowed, shuffleQuestions, showResults, passingScore, debouncedSaveAssessment, taskId, readOnly]);
-
-    // Cleanup timeout on unmount
-    useEffect(() => {
-        return () => {
-            if (assessmentChangeTimeoutRef.current) {
-                clearTimeout(assessmentChangeTimeoutRef.current);
-            }
-        };
-    }, []);
+        
+        // Cancel pending saves when leaving edit mode
+        if (!isEditMode) {
+            cancelSave();
+        }
+    }, [isEditMode, hasUnsavedChanges, saveImmediately, cancelSave]);
 
     // Add validation utility functions to reduce duplication
     // These functions can validate both the current question and any question by index
@@ -3094,16 +3158,57 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                         <p className="text-gray-400 text-sm">Convert this quiz into a timed, monitored assessment</p>
                                                                     </div>
                                                                 </div>
-                                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={assessmentMode}
-                                                                        onChange={(e) => setAssessmentMode(e.target.checked)}
-                                                                        disabled={readOnly}
-                                                                        className="sr-only peer"
-                                                                    />
-                                                                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                                                                </label>
+                                                                <div className="relative">
+                                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={assessmentMode}
+                                                                            onChange={(e) => handleAssessmentModeToggle(e.target.checked)}
+                                                                            disabled={readOnly || isSavingAssessment}
+                                                                            className="sr-only peer"
+                                                                        />
+                                                                        <div className={`w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 ${isSavingAssessment ? 'opacity-50' : ''}`}></div>
+                                                                    </label>
+                                                                    {isSavingAssessment && (
+                                                                        <div className="absolute -right-8 top-1/2 transform -translate-y-1/2">
+                                                                            <div className="w-4 h-4 border-t-2 border-b-2 border-purple-400 rounded-full animate-spin"></div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Save Status Indicator */}
+                                                            <div className="flex items-center justify-end space-x-2">
+                                                                {saveStatus === 'saving' && (
+                                                                    <span className="text-blue-400 text-sm flex items-center">
+                                                                        <svg className="animate-spin h-4 w-4 mr-1" viewBox="0 0 24 24">
+                                                                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.416" strokeDashoffset="31.416">
+                                                                                <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+                                                                                <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+                                                                            </circle>
+                                                                        </svg>
+                                                                        Saving...
+                                                                    </span>
+                                                                )}
+                                                                {saveStatus === 'saved' && (
+                                                                    <span className="text-green-400 text-sm flex items-center">
+                                                                        <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                                                        </svg>
+                                                                        Saved
+                                                                    </span>
+                                                                )}
+                                                                {saveStatus === 'error' && (
+                                                                    <span className="text-red-400 text-sm flex items-center">
+                                                                        <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                                                                        </svg>
+                                                                        Save failed
+                                                                    </span>
+                                                                )}
+                                                                {hasUnsavedChanges && saveStatus === 'idle' && (
+                                                                    <span className="text-yellow-400 text-sm">Unsaved changes</span>
+                                                                )}
                                                             </div>
 
                                                             {/* Assessment Settings - Only show when assessment mode is enabled */}
@@ -3118,7 +3223,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                         <input
                                                                             type="number"
                                                                             value={durationMinutes}
-                                                                            onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
+                                                                            onChange={(e) => handleAssessmentSettingChange('durationMinutes', parseInt(e.target.value) || 60)}
                                                                             disabled={readOnly}
                                                                             min="1"
                                                                             max="480"
@@ -3135,7 +3240,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                         <input
                                                                             type="number"
                                                                             value={passingScore}
-                                                                            onChange={(e) => setPassingScore(parseInt(e.target.value) || 60)}
+                                                                            onChange={(e) => handleAssessmentSettingChange('passingScore', parseInt(e.target.value) || 60)}
                                                                             disabled={readOnly}
                                                                             min="0"
                                                                             max="100"
@@ -3151,7 +3256,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                         </div>
                                                                         <select
                                                                             value={attemptsAllowed}
-                                                                            onChange={(e) => setAttemptsAllowed(parseInt(e.target.value))}
+                                                                            onChange={(e) => handleAssessmentSettingChange('attemptsAllowed', parseInt(e.target.value))}
                                                                             disabled={readOnly}
                                                                             className="px-3 py-2 bg-[#2a2a2a] border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                                                                         >
@@ -3177,7 +3282,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                             <input
                                                                                 type="checkbox"
                                                                                 checked={integrityMonitoring}
-                                                                                onChange={(e) => setIntegrityMonitoring(e.target.checked)}
+                                                                                onChange={(e) => handleAssessmentSettingChange('integrityMonitoring', e.target.checked)}
                                                                                 disabled={readOnly}
                                                                                 className="sr-only peer"
                                                                             />
@@ -3192,7 +3297,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                                 type="checkbox"
                                                                                 id="shuffleQuestions"
                                                                                 checked={shuffleQuestions}
-                                                                                onChange={(e) => setShuffleQuestions(e.target.checked)}
+                                                                                onChange={(e) => handleAssessmentSettingChange('shuffleQuestions', e.target.checked)}
                                                                                 disabled={readOnly}
                                                                                 className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
                                                                             />
@@ -3205,7 +3310,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                                 type="checkbox"
                                                                                 id="showResults"
                                                                                 checked={showResults}
-                                                                                onChange={(e) => setShowResults(e.target.checked)}
+                                                                                onChange={(e) => handleAssessmentSettingChange('showResults', e.target.checked)}
                                                                                 disabled={readOnly}
                                                                                 className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
                                                                             />
@@ -3242,6 +3347,21 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
                                                                     </ul>
                                                                 </div>
                                                             )}
+                                                        </div>
+
+                                                        {/* Manual Save Button */}
+                                                        <div className="flex justify-end space-x-3 mt-6">
+                                                            <button
+                                                                onClick={saveImmediately}
+                                                                disabled={!hasUnsavedChanges || isSavingAssessment}
+                                                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                                                    hasUnsavedChanges && !isSavingAssessment
+                                                                        ? 'bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500'
+                                                                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                                                }`}
+                                                            >
+                                                                {isSavingAssessment ? 'Saving...' : 'Save Now'}
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>

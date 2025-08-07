@@ -6,7 +6,6 @@ import { Module } from "@/types/course";
 import { useAuth } from "@/lib/auth";
 import { Course, Cohort } from "@/types";
 import { ChevronDown, Shield, CheckCircle } from "lucide-react";
-import { ChevronDown, Shield, CheckCircle } from "lucide-react";
 import MobileDropdown, { DropdownOption } from "./MobileDropdown";
 import Link from "next/link";
 

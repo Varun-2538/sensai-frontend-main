@@ -23,6 +23,8 @@ import { QuizQuestion, QuizQuestionConfig } from "../../../../../../types/quiz";
 
 // Import the CreateCohortDialog
 import CreateCohortDialog from '@/components/CreateCohortDialog';
+// Import data mapping utilities
+import { mapQuizDataFromAPI } from '@/utils/quizDataMapping';
 
 interface CourseDetails {
     id: number;
@@ -37,6 +39,7 @@ const defaultQuestionConfig: QuizQuestionConfig = {
     questionType: 'objective',
     knowledgeBaseBlocks: [],
     linkedMaterialIds: [],
+    title: 'New Question',
 };
 
 
@@ -408,22 +411,25 @@ export default function CreateCourse() {
     };
 
     const addQuizToState = (moduleId: string, taskData: any, position: number) => {
+        // Use mapping utility to properly convert backend data to frontend format
+        const mappedData = mapQuizDataFromAPI(taskData);
+        
         const newItem: Quiz = {
             id: taskData.id.toString(),
-            title: taskData.title || "New quiz",
+            title: mappedData.title || "New quiz",
             position: position,
             type: 'quiz',
-            questions: taskData.questions || [],
+            questions: mappedData.questions || [],
             status: 'draft',
-            scheduled_publish_at: null,
-            // Initialize assessment mode properties with default values
-            assessmentMode: taskData.assessment_mode || false,
-            durationMinutes: taskData.duration_minutes || 60,
-            integrityMonitoring: taskData.integrity_monitoring || false,
-            attemptsAllowed: taskData.attempts_allowed || 1,
-            shuffleQuestions: taskData.shuffle_questions || false,
-            showResults: taskData.show_results !== undefined ? taskData.show_results : true,
-            passingScore: taskData.passing_score_percentage || 60
+            scheduled_publish_at: mappedData.scheduled_publish_at || null,
+            // Use mapped assessment mode properties
+            assessmentMode: mappedData.assessmentMode,
+            durationMinutes: mappedData.durationMinutes,
+            integrityMonitoring: mappedData.integrityMonitoring,
+            attemptsAllowed: mappedData.attemptsAllowed,
+            shuffleQuestions: mappedData.shuffleQuestions,
+            showResults: mappedData.showResults,
+            passingScore: mappedData.passingScore
         };
 
         return addItemToState(moduleId, newItem, position);
