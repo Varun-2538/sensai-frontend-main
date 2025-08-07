@@ -534,6 +534,8 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
             const dialogTitleElement = document.querySelector('.dialog-content-editor')?.parentElement?.querySelector('h2');
             const currentTitle = dialogTitleElement?.textContent || '';
 
+
+
             const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/${taskId}/quiz`, {
                 method: 'POST',
                 headers: {
@@ -625,10 +627,7 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
         if (updates.passingScore !== undefined) setPassingScore(updates.passingScore);
         
         setHasUnsavedChanges(true);
-        
-        // Trigger debounced save
-        debouncedSave();
-    }, [debouncedSave]);
+    }, []);
 
     // Handle assessment mode toggle specifically
     const handleAssessmentModeToggle = useCallback((enabled: boolean) => {
@@ -647,17 +646,12 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
         handleQuizChange({ [key]: value });
     }, [handleQuizChange]);
 
-    // Save immediately when leaving edit mode
+    // Do not auto-save when leaving edit mode; only cancel any pending saves
     useEffect(() => {
-        if (!isEditMode && hasUnsavedChanges) {
-            saveImmediately();
-        }
-        
-        // Cancel pending saves when leaving edit mode
         if (!isEditMode) {
             cancelSave();
         }
-    }, [isEditMode, hasUnsavedChanges, saveImmediately, cancelSave]);
+    }, [isEditMode, cancelSave]);
 
     // Add validation utility functions to reduce duplication
     // These functions can validate both the current question and any question by index

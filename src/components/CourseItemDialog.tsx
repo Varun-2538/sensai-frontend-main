@@ -1040,6 +1040,8 @@ const CourseItemDialog: React.FC<CourseItemDialogProps> = ({
                                         activeItem.showResults = mappedData.showResults;
                                         activeItem.passingScore = mappedData.passingScore;
 
+                                        // Also persist these changes back into modules state via onSaveItem
+                                        // so the parent view reflects the latest assessment config
                                         // Call onSaveItem to exit edit mode
                                         onSaveItem();
 

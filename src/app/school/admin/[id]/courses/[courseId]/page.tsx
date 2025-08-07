@@ -1000,7 +1000,15 @@ export default function CreateCourse() {
                                     return {
                                         ...item,
                                         ...commonUpdates,
-                                        questions: activeItem.questions
+                                        questions: activeItem.questions,
+                                        // Persist assessment mode configuration to module state
+                                        assessmentMode: activeItem.assessmentMode,
+                                        durationMinutes: activeItem.durationMinutes,
+                                        integrityMonitoring: activeItem.integrityMonitoring,
+                                        attemptsAllowed: activeItem.attemptsAllowed,
+                                        shuffleQuestions: activeItem.shuffleQuestions,
+                                        showResults: activeItem.showResults,
+                                        passingScore: activeItem.passingScore,
                                     };
                                 }
 

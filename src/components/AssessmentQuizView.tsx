@@ -87,7 +87,7 @@ export default function AssessmentQuizView({
         // Start assessment session via API
         if (taskId) {
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/quiz/assessment/start`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/quiz/assessment/start`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -113,9 +113,15 @@ export default function AssessmentQuizView({
                 }
 
                 setAssessmentStarted(true);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error starting assessment session:', error);
-                alert(`Failed to start assessment: ${error.message}`);
+                const message = error?.message || '';
+                // Gracefully handle already-active session by proceeding
+                if (message.includes('Active assessment session already exists')) {
+                    setAssessmentStarted(true);
+                    return;
+                }
+                alert(`Failed to start assessment: ${message}`);
                 return;
             }
         } else {
