@@ -52,6 +52,7 @@ export default function MediaPipeProctor({
   const [error, setError] = useState<string | null>(null);
   const [currentEvents, setCurrentEvents] = useState<ProctorEvent[]>([]);
   const [videoState, setVideoState] = useState({ playing: false, dimensions: { width: 0, height: 0 } });
+  const [pendingStream, setPendingStream] = useState<MediaStream | null>(null);
   
   // Monitoring state
   const [faceBaseline, setFaceBaseline] = useState<any>(null);
@@ -100,6 +101,98 @@ export default function MediaPipeProctor({
       }
     };
   }, [enabled, isInitialized]);
+
+  // Handle video setup when element becomes available
+  useEffect(() => {
+    if (pendingStream && videoRef.current && isMonitoring) {
+      console.log('🎬 Video element is now available, setting up stream...');
+      setupVideoStream(pendingStream);
+      setPendingStream(null);
+    }
+  }, [pendingStream, isMonitoring]);
+
+  // Setup video stream
+  const setupVideoStream = async (stream: MediaStream) => {
+    if (!videoRef.current) {
+      console.error('❌ Video ref not available in setupVideoStream');
+      return;
+    }
+
+    console.log('✅ Setting up video stream');
+    
+    // Set the stream
+    videoRef.current.srcObject = stream;
+    streamRef.current = stream;
+    
+    console.log('🎬 Video element srcObject set');
+
+    // Set up video event handlers
+    const setupVideoHandlers = () => {
+      if (!videoRef.current) return;
+
+      videoRef.current.onloadedmetadata = async () => {
+        console.log('📊 Video metadata loaded');
+        if (videoRef.current) {
+          try {
+            await videoRef.current.play();
+            console.log('▶ Video playback started successfully');
+            startAnalysis();
+            setIsLoading(false);
+          } catch (playError) {
+            console.error('❌ Video play error:', playError);
+            setError('Failed to start video playback. Click to allow autoplay.');
+          }
+        }
+      };
+
+      videoRef.current.oncanplay = () => {
+        console.log('✅ Video can play');
+      };
+
+      videoRef.current.onplaying = () => {
+        console.log('🎥 Video is playing');
+        setVideoState(prev => ({ ...prev, playing: true }));
+        setIsLoading(false);
+      };
+
+      videoRef.current.onloadeddata = () => {
+        console.log('📋 Video data loaded');
+        if (videoRef.current) {
+          setVideoState(prev => ({ 
+            ...prev, 
+            dimensions: { 
+              width: videoRef.current!.videoWidth, 
+              height: videoRef.current!.videoHeight 
+            }
+          }));
+        }
+      };
+
+      videoRef.current.onerror = (err) => {
+        console.error('❌ Video error:', err);
+        setError('Video playback error occurred.');
+        setIsLoading(false);
+      };
+
+      videoRef.current.onpause = () => {
+        console.log('⏸ Video paused');
+        setVideoState(prev => ({ ...prev, playing: false }));
+      };
+    };
+
+    setupVideoHandlers();
+
+    // Try to play immediately (fallback)
+    try {
+      await videoRef.current.play();
+      console.log('▶ Immediate play successful');
+      startAnalysis();
+      setIsLoading(false);
+    } catch (immediatePlayError) {
+      console.log('⚠ Immediate play blocked (normal), waiting for user interaction or metadata load');
+      // This is normal - autoplay might be blocked
+    }
+  };
 
   // Initialize MediaPipe models
   const initializeMediaPipe = async () => {
@@ -179,7 +272,11 @@ export default function MediaPipeProctor({
   // Start camera and monitoring
   const startMonitoring = async () => {
     try {
-      console.log('Requesting camera access...');
+      console.log('🚀 Starting camera monitoring...');
+      setError(null);
+      setIsLoading(true);
+
+      // Request camera access first
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -189,80 +286,58 @@ export default function MediaPipeProctor({
         audio: false
       });
 
-      console.log('Camera access granted, stream:', stream);
+      console.log('✅ Camera access granted, stream active:', stream.active);
+      console.log('📹 Video tracks:', stream.getVideoTracks().length);
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        
-        // Add multiple event listeners to ensure video plays
-        videoRef.current.onloadedmetadata = async () => {
-          console.log('Video metadata loaded');
-          if (videoRef.current) {
-            try {
-              await videoRef.current.play();
-              console.log('Video playback started');
-              setIsMonitoring(true);
-              startAnalysis();
-            } catch (playError) {
-              console.error('Video play error:', playError);
-              setError('Failed to start video playback. Please try again.');
-            }
-          }
-        };
+      // Store the stream and set monitoring to true (this will render the video element)
+      setPendingStream(stream);
+      setIsMonitoring(true);
+      
+      console.log('🎬 Set monitoring to true and stored pending stream');
 
-        videoRef.current.oncanplay = () => {
-          console.log('Video can play');
-        };
-
-        videoRef.current.onplaying = () => {
-          console.log('Video is playing');
-          setVideoState(prev => ({ ...prev, playing: true }));
-        };
-
-        videoRef.current.onloadeddata = () => {
-          console.log('Video data loaded');
-          if (videoRef.current) {
-            setVideoState(prev => ({ 
-              ...prev, 
-              dimensions: { 
-                width: videoRef.current!.videoWidth, 
-                height: videoRef.current!.videoHeight 
-              }
-            }));
-          }
-        };
-
-        videoRef.current.onerror = (err) => {
-          console.error('Video error:', err);
-          setError('Video playback error occurred.');
-        };
-
-        // Fallback: try to play immediately if metadata is already loaded
-        if (videoRef.current.readyState >= 2) {
-          console.log('Video ready state sufficient, attempting immediate play');
-          try {
-            await videoRef.current.play();
-            setIsMonitoring(true);
-            startAnalysis();
-          } catch (playError) {
-            console.error('Immediate play failed:', playError);
-          }
-        }
-      }
     } catch (err) {
-      setError('Failed to access camera. Please ensure camera permissions are granted.');
-      console.error('Camera access error:', err);
+      console.error('❌ Camera access error:', err);
+      setError(`Failed to access camera: ${err}`);
+      setIsLoading(false);
+      setIsMonitoring(false);
     }
   };
 
   // Stop monitoring
   const stopMonitoring = () => {
+    console.log('🛑 Stopping camera monitoring...');
+    
+    // Stop all media tracks
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        console.log(`🔌 Stopping ${track.kind} track`);
+        track.stop();
+      });
       streamRef.current = null;
     }
+
+    // Stop pending stream if exists
+    if (pendingStream) {
+      pendingStream.getTracks().forEach(track => {
+        console.log(`🔌 Stopping pending ${track.kind} track`);
+        track.stop();
+      });
+      setPendingStream(null);
+    }
+
+    // Clear video element
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+      videoRef.current.pause();
+    }
+
+    // Reset states
     setIsMonitoring(false);
+    setVideoState({ playing: false, dimensions: { width: 0, height: 0 } });
+    setError(null);
+    setIsLoading(false);
+    
+    console.log('✅ Camera monitoring stopped');
   };
 
   // Main analysis loop
@@ -603,6 +678,17 @@ export default function MediaPipeProctor({
                     minHeight: '300px',
                     objectFit: 'cover'
                   }}
+                  onClick={async () => {
+                    // Manual play fallback if autoplay is blocked
+                    if (videoRef.current && videoRef.current.paused) {
+                      try {
+                        await videoRef.current.play();
+                        console.log('📱 Manual play successful');
+                      } catch (err) {
+                        console.error('❌ Manual play failed:', err);
+                      }
+                    }
+                  }}
                 />
                 <canvas
                   ref={canvasRef}
@@ -616,6 +702,27 @@ export default function MediaPipeProctor({
                     '🔴 No Stream'
                   }
                 </div>
+
+                {/* Manual Play Button (shown if video is paused) */}
+                {videoRef.current?.paused && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Button 
+                      onClick={async () => {
+                        if (videoRef.current) {
+                          try {
+                            await videoRef.current.play();
+                            console.log('▶ Manual play button clicked - success');
+                          } catch (err) {
+                            console.error('❌ Manual play button failed:', err);
+                          }
+                        }
+                      }}
+                      className="bg-white bg-opacity-90 text-black hover:bg-opacity-100"
+                    >
+                      ▶ Click to Play Video
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
