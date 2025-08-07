@@ -59,6 +59,43 @@ export default function MediaPipeProctor({
   const [poseBaseline, setPoseBaseline] = useState<any>(null);
   const lastFrameTime = useRef<number>(0);
   const eventCooldowns = useRef<Map<string, number>>(new Map());
+  const consecutiveNoFaceFrames = useRef<number>(0);
+  const originalConsoleError = useRef<typeof console.error | null>(null);
+  const monitoringStartTimeMs = useRef<number>(0);
+
+  // Suppress noisy Mediapipe INFO logs that are routed through console.error in dev
+  useEffect(() => {
+    originalConsoleError.current = console.error;
+    const ignorePatterns = [/^INFO:/, /XNNPACK delegate/i];
+    const filteredConsoleError = (...args: unknown[]) => {
+      try {
+        const firstArg = args[0] as unknown;
+        const message = typeof firstArg === 'string'
+          ? firstArg
+          : (firstArg instanceof Error ? firstArg.message : String(firstArg ?? ''));
+        if (ignorePatterns.some((p) => p.test(message))) {
+          // Ignore Mediapipe INFO lines that Next.js treats as errors in dev
+          return;
+        }
+      } catch (_) {
+        // fall through to original
+      }
+      if (originalConsoleError.current) {
+        // eslint-disable-next-line prefer-spread
+        originalConsoleError.current.apply(console, args as any);
+      }
+    };
+
+    // Patch console.error while this component is mounted
+    // Note: This is scoped to the page lifecycle and restored on unmount
+    // so it will not affect other parts of the app when not proctoring.
+    console.error = filteredConsoleError as any;
+    return () => {
+      if (originalConsoleError.current) {
+        console.error = originalConsoleError.current;
+      }
+    };
+  }, []);
 
   // Load MediaPipe scripts
   useEffect(() => {
@@ -292,6 +329,7 @@ export default function MediaPipeProctor({
       // Store the stream and set monitoring to true (this will render the video element)
       setPendingStream(stream);
       setIsMonitoring(true);
+      monitoringStartTimeMs.current = performance.now();
       
       console.log('🎬 Set monitoring to true and stored pending stream');
 
@@ -408,16 +446,42 @@ export default function MediaPipeProctor({
   // Analyze face detection results
   const analyzeFaces = (results: any, timestamp: number) => {
     const faces = results.detections || [];
-    
-    // No face detected
-    if (faces.length === 0) {
-      triggerEvent({
-        type: 'face_not_detected',
-        timestamp,
-        severity: 'high',
-        data: { faceCount: 0 }
-      });
+
+    // Determine debounced threshold for no-face detection based on sensitivity
+    const getNoFaceFramesThreshold = (level: string): number => {
+      // At ~30 FPS, 8/14/20 frames correspond to roughly 270/470/670 ms
+      switch (level) {
+        case 'high':
+          return 8;
+        case 'low':
+          return 20;
+        default:
+          return 14; // medium
+      }
+    };
+
+    // No face detected with debounce to avoid false positives between frames
+    // Grace period right after starting monitoring to avoid cold-start false negatives
+    const warmUpMs = 1200; // ~1.2s
+    const isWarmingUp = monitoringStartTimeMs.current > 0 &&
+      (timestamp - monitoringStartTimeMs.current) < warmUpMs;
+
+    if (faces.length === 0 && !isWarmingUp) {
+      consecutiveNoFaceFrames.current += 1;
+      if (consecutiveNoFaceFrames.current >= getNoFaceFramesThreshold(sensitivity)) {
+        triggerEvent({
+          type: 'face_not_detected',
+          timestamp,
+          severity: 'high',
+          data: { faceCount: 0 }
+        });
+        // Reset so we only trigger again after another sustained period
+        consecutiveNoFaceFrames.current = 0;
+      }
       return;
+    } else {
+      // Reset counter once we have any face
+      consecutiveNoFaceFrames.current = 0;
     }
 
     // Multiple faces detected
