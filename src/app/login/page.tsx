@@ -12,6 +12,7 @@ function LoginContent() {
     const { data: session, status } = useSession();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") || "/";
+    const role = searchParams.get("role") || null;
 
     // Redirect if already authenticated
     useEffect(() => {
@@ -56,18 +57,35 @@ function LoginContent() {
                             />
                         </div>
 
-                        <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
-                            <span className="text-white">Teach </span>
-                            <span className="text-purple-400">smarter</span>
-                        </h1>
-                        <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
-                            <span className="text-white">Reach </span>
-                            <span className="text-purple-400">further</span>
-                        </h1>
-
-                        <p className="text-lg md:text-xl text-gray-300 mt-6 mb-6 max-w-md">
-                            SensAI is an AI-powered LMS that coaches every learner by asking questions without giving away the answer and grades their responses like your favourite teaching assistant so that you can maximize your reach without sacrificing quality
-                        </p>
+                        {role === 'student' ? (
+                            <>
+                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
+                                    <span className="text-white">Learn </span>
+                                    <span className="text-green-400">smarter</span>
+                                </h1>
+                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
+                                    <span className="text-white">Achieve </span>
+                                    <span className="text-green-400">more</span>
+                                </h1>
+                                <p className="text-lg md:text-xl text-gray-300 mt-6 mb-6 max-w-md">
+                                    Join interactive courses, take AI-powered assessments, and learn with personalized feedback that helps you master concepts at your own pace.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
+                                    <span className="text-white">Teach </span>
+                                    <span className="text-purple-400">smarter</span>
+                                </h1>
+                                <h1 className="text-4xl md:text-5xl font-light text-white leading-tight">
+                                    <span className="text-white">Reach </span>
+                                    <span className="text-purple-400">further</span>
+                                </h1>
+                                <p className="text-lg md:text-xl text-gray-300 mt-6 mb-6 max-w-md">
+                                    SensAI is an AI-powered LMS that coaches every learner by asking questions without giving away the answer and grades their responses like your favourite teaching assistant so that you can maximize your reach without sacrificing quality
+                                </p>
+                            </>
+                        )}
                     </div>
 
                     {/* Login card - spans 5 columns on desktop */}
@@ -75,7 +93,10 @@ function LoginContent() {
                         <div className="mx-4 md:mx-0">
                             <button
                                 onClick={handleGoogleLogin}
-                                className="flex items-center justify-center w-full py-3 px-4 bg-white border border-gray-300 rounded-full text-black hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer mx-4"
+                                className={`flex items-center justify-center w-full py-3 px-4 border border-gray-300 rounded-full hover:opacity-90 transition-colors focus:outline-none focus:ring-2 cursor-pointer mx-4 ${role === 'student'
+                                        ? 'bg-green-600 text-white focus:ring-green-500'
+                                        : 'bg-white text-black focus:ring-purple-500'
+                                    }`}
                             >
                                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                                     <path
@@ -95,8 +116,27 @@ function LoginContent() {
                                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                                     />
                                 </svg>
-                                Sign in with Google
+                                {role === 'student' ? 'Sign in as Student' : 'Sign in with Google'}
                             </button>
+
+                            {/* Role toggle */}
+                            <div className="text-center mt-4 mx-4">
+                                {role === 'student' ? (
+                                    <p className="text-xs text-gray-500">
+                                        Are you an educator?{' '}
+                                        <Link href="/login" className="text-purple-400 hover:text-purple-300">
+                                            Sign in as Teacher
+                                        </Link>
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-gray-500">
+                                        Are you a student?{' '}
+                                        <Link href="/login?role=student" className="text-green-400 hover:text-green-300">
+                                            Sign in as Student
+                                        </Link>
+                                    </p>
+                                )}
+                            </div>
 
                             <div className="px-4 md:px-8 py-4">
                                 <p className="text-xs text-gray-500">
