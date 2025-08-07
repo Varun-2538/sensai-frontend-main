@@ -534,6 +534,8 @@ const QuizEditor = forwardRef<QuizEditorHandle, QuizEditorProps>(({
             const dialogTitleElement = document.querySelector('.dialog-content-editor')?.parentElement?.querySelector('h2');
             const currentTitle = dialogTitleElement?.textContent || '';
 
+
+
             const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/${taskId}/quiz`, {
                 method: 'POST',
                 headers: {
