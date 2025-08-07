@@ -5,8 +5,9 @@ import TopPerformers from "./TopPerformers";
 import { Module } from "@/types/course";
 import { useAuth } from "@/lib/auth";
 import { Course, Cohort } from "@/types";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Shield } from "lucide-react";
 import MobileDropdown, { DropdownOption } from "./MobileDropdown";
+import Link from "next/link";
 
 // Constants for localStorage keys
 const LAST_INCREMENT_DATE_KEY = 'streak_last_increment_date';
@@ -30,6 +31,8 @@ interface LearnerCohortViewProps {
     courses?: Course[];
     onCourseSelect?: (index: number) => void;
     activeCourseIndex?: number;
+    integrityMode?: boolean;
+    sessionUuid?: string;
 }
 
 interface StreakData {
@@ -49,6 +52,8 @@ export default function LearnerCohortView({
     courses = [],
     onCourseSelect,
     activeCourseIndex = 0,
+    integrityMode = false,
+    sessionUuid,
 }: LearnerCohortViewProps) {
     // Add state to manage completed tasks and questions
     const [localCompletedTaskIds, setLocalCompletedTaskIds] = useState<Record<string, boolean>>(completedTaskIds);
@@ -308,9 +313,22 @@ export default function LearnerCohortView({
     return (
         <div className="bg-black min-h-screen pb-16 lg:pb-0" role="main">
             {courseTitle && (
-                <h1 className="text-2xl md:text-3xl font-light text-white mb-4 md:mb-6 px-1 sm:px-0">
-                    {courseTitle}
-                </h1>
+                <div className="mb-4 md:mb-6">
+                    <h1 className="text-2xl md:text-3xl font-light text-white px-1 sm:px-0">
+                        {courseTitle}
+                    </h1>
+                    {integrityMode && (
+                        <div className="flex items-center space-x-2 mt-2 px-1 sm:px-0">
+                            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                            <span className="text-sm text-green-400 font-medium">Integrity Monitoring Active</span>
+                            {sessionUuid && (
+                                <span className="text-xs text-gray-500">
+                                    Session: {sessionUuid.slice(0, 8)}...
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
             )}
 
             <div className="lg:flex lg:flex-row lg:justify-between">
@@ -402,6 +420,25 @@ export default function LearnerCohortView({
                                 streakDays={streakCount}
                                 activeDays={activeWeekDays}
                             />
+                        )}
+
+                        {/* Integrity Assessment Link - Only show when not in integrity mode */}
+                        {!integrityMode && schoolId && cohortId && (
+                            <div className="bg-gray-900 rounded-lg p-6">
+                                <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
+                                    <Shield className="w-5 h-5 mr-2 text-purple-400" />
+                                    Integrity Assessment
+                                </h3>
+                                <p className="text-gray-400 text-sm mb-4">
+                                    Take this course in integrity-monitored mode for enhanced security.
+                                </p>
+                                <Link
+                                    href={`/school/${schoolId}/cohort/${cohortId}/integrity-assessment`}
+                                    className="block w-full bg-purple-600 hover:bg-purple-700 text-white text-center py-2 px-4 rounded-lg transition-colors"
+                                >
+                                    Start Integrity Assessment
+                                </Link>
+                            </div>
                         )}
 
                         {/* Only show TopPerformers if showTopPerformers is true */}
