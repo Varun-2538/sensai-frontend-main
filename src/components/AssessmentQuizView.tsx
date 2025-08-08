@@ -100,7 +100,8 @@ export default function AssessmentQuizView({
                     body: JSON.stringify({
                         task_id: parseInt(taskId),
                         cohort_id: cohortId ? parseInt(cohortId) : null,
-                        integrity_monitoring: integrityMonitoring
+                        integrity_monitoring: integrityMonitoring,
+                        user_id: user?.id || undefined
                     })
                 });
 
