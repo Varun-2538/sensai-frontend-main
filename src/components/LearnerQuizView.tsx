@@ -220,6 +220,71 @@ export default function LearnerQuizView({
     // State to track which questions are currently being submitted (waiting for API response)
     const [pendingSubmissionQuestionIds, setPendingSubmissionQuestionIds] = useState<Record<string, boolean>>({});
 
+    // Question timing tracking
+    const questionStartMsRef = useRef<number>(Date.now());
+    const overrunTimerRef = useRef<number | null>(null);
+    const overrunFiredRef = useRef<Record<string, boolean>>({});
+
+    const getBaselineSeconds = useCallback((questionIndex: number): number => {
+        const q = validQuestions[questionIndex];
+        const type = q?.config?.questionType || 'objective';
+        // Baselines may be tuned later
+        if (type === 'objective') return 30;      // MCQ
+        if (type === 'subjective') return 120;    // short writing
+        if (q?.config?.inputType === 'code' || type === 'coding') return 300; // coding
+        return 60; // default
+    }, [validQuestions]);
+
+    const emitTimeOverrun = useCallback((questionId: string, secondsSpent: number, baselineSeconds: number) => {
+        // Dispatch a custom event so the proctor system can record it
+        const detail = {
+            question_id: questionId,
+            seconds_spent: secondsSpent,
+            baseline_seconds: baselineSeconds,
+            message: `Time overrun: spent ${Math.round(secondsSpent)}s on a question with ${baselineSeconds}s baseline.`
+        };
+        window.dispatchEvent(new CustomEvent('integrity:question-time-exceeded', { detail }));
+    }, []);
+
+    // Start/refresh timing when question changes
+    useEffect(() => {
+        const currentId = validQuestions[currentQuestionIndex]?.id;
+        if (!currentId) return;
+
+        // Clear previous timer
+        if (overrunTimerRef.current) {
+            window.clearTimeout(overrunTimerRef.current);
+            overrunTimerRef.current = null;
+        }
+
+        // Set new start time
+        questionStartMsRef.current = Date.now();
+
+        // Schedule overrun check at 2x baseline
+        const baseline = getBaselineSeconds(currentQuestionIndex);
+        const thresholdMs = baseline * 2 * 1000;
+        overrunTimerRef.current = window.setTimeout(() => {
+            if (overrunFiredRef.current[currentId]) return;
+            overrunFiredRef.current[currentId] = true;
+            const secondsSpent = (Date.now() - questionStartMsRef.current) / 1000;
+            emitTimeOverrun(currentId, secondsSpent, baseline);
+        }, thresholdMs) as unknown as number;
+
+        return () => {
+            // On question leave, emit if exceeded and not already fired
+            const secondsSpent = (Date.now() - questionStartMsRef.current) / 1000;
+            const baselineLocal = getBaselineSeconds(currentQuestionIndex);
+            if (secondsSpent >= baselineLocal * 2 && !overrunFiredRef.current[currentId]) {
+                overrunFiredRef.current[currentId] = true;
+                emitTimeOverrun(currentId, secondsSpent, baselineLocal);
+            }
+            if (overrunTimerRef.current) {
+                window.clearTimeout(overrunTimerRef.current);
+                overrunTimerRef.current = null;
+            }
+        };
+    }, [currentQuestionIndex, validQuestions, getBaselineSeconds, emitTimeOverrun]);
+
     // Update the ref when the state changes
     useEffect(() => {
         currentAnswerRef.current = currentAnswer;

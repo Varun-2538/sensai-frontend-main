@@ -341,6 +341,22 @@ export default function IntegratedProctorSystem({
     };
     document.addEventListener('contextmenu', handleContextMenu);
 
+    // Listen for question time overrun events from the quiz view
+    const handleQuestionOverrun = (e: Event) => {
+      if (!session || !eventBatcher.current) return;
+      const detail = (e as CustomEvent).detail || {};
+      eventBatcher.current.addEvent({
+        session_uuid: session.session_uuid,
+        user_id: userId,
+        event_type: 'suspicious_activity',
+        data: { event_subtype: 'question_time_overrun', ...detail },
+        severity: 'low',
+        flagged: false
+      });
+      setStats(prev => ({ ...prev, eventsCount: prev.eventsCount + 1 }));
+    };
+    window.addEventListener('integrity:question-time-exceeded', handleQuestionOverrun as EventListener);
+
     // Cleanup
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -350,8 +366,9 @@ export default function IntegratedProctorSystem({
       document.removeEventListener('cut', handleCut, true);
       document.removeEventListener('keydown', handleCopyPasteHotkey, true);
       document.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('integrity:question-time-exceeded', handleQuestionOverrun as EventListener);
     };
-  }, [isSessionActive, handleTabSwitch, handleWindowBlur, handleCopyPaste]);
+  }, [isSessionActive, handleTabSwitch, handleWindowBlur, handleCopyPaste, userId, session, handleCopyPasteHotkey]);
 
   // Auto-start if requested
   useEffect(() => {
