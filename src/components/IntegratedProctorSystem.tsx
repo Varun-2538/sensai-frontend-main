@@ -247,6 +247,9 @@ export default function IntegratedProctorSystem({
   const handleCopyPaste = useCallback((event: ClipboardEvent) => {
     if (!session) return;
 
+    // Block the default action and show the notice immediately
+    try { event.preventDefault(); } catch {}
+    try { event.stopPropagation(); } catch {}
     showBlockingNotice('copy_paste');
 
     if (eventBatcher.current && eventThrottler.current.shouldSendEvent('copy_paste')) {
@@ -259,6 +262,39 @@ export default function IntegratedProctorSystem({
           type: event.type,
           dataLength: event.clipboardData?.getData('text').length || 0
         },
+        severity: 'medium',
+        flagged: true
+      });
+
+      setNativeEvents(prev => ({ ...prev, copyPastes: prev.copyPastes + 1 }));
+      setStats(prev => ({ 
+        ...prev, 
+        eventsCount: prev.eventsCount + 1,
+        flagsCount: prev.flagsCount + 1,
+        integrityScore: Math.max(0, prev.integrityScore - 5)
+      }));
+    }
+  }, [session, userId, showBlockingNotice]);
+
+  // Block copy/paste/cut hotkeys (Ctrl/Cmd + C/V/X, Shift+Insert)
+  const handleCopyPasteHotkey = useCallback((e: KeyboardEvent) => {
+    if (!session) return;
+    const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+    const ctrlOrMeta = isMac ? e.metaKey : e.ctrlKey;
+    const key = e.key?.toLowerCase();
+    const isCombo = (ctrlOrMeta && (key === 'c' || key === 'v' || key === 'x')) || (e.shiftKey && key === 'insert');
+    if (!isCombo) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    showBlockingNotice('copy_paste');
+
+    if (eventBatcher.current && eventThrottler.current.shouldSendEvent('copy_paste')) {
+      eventBatcher.current.addEvent({
+        session_uuid: session.session_uuid,
+        user_id: userId,
+        event_type: 'copy_paste',
+        data: { timestamp: Date.now(), type: 'hotkey', key, ctrlOrMeta },
         severity: 'medium',
         flagged: true
       });
@@ -287,19 +323,17 @@ export default function IntegratedProctorSystem({
       handleWindowBlur();
     };
 
-    const handlePaste = (e: ClipboardEvent) => {
-      handleCopyPaste(e);
-    };
-
-    const handleCopy = (e: ClipboardEvent) => {
-      handleCopyPaste(e);
-    };
+    const handlePaste = (e: ClipboardEvent) => { handleCopyPaste(e); };
+    const handleCopy = (e: ClipboardEvent) => { handleCopyPaste(e); };
+    const handleCut = (e: ClipboardEvent) => { handleCopyPaste(e); };
 
     // Add event listeners
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleBlur);
-    document.addEventListener('paste', handlePaste);
-    document.addEventListener('copy', handleCopy);
+    document.addEventListener('paste', handlePaste, true);
+    document.addEventListener('copy', handleCopy, true);
+    document.addEventListener('cut', handleCut, true);
+    document.addEventListener('keydown', handleCopyPasteHotkey, true);
 
     // Prevent right-click context menu
     const handleContextMenu = (e: MouseEvent) => {
@@ -311,8 +345,10 @@ export default function IntegratedProctorSystem({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleBlur);
-      document.removeEventListener('paste', handlePaste);
-      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('paste', handlePaste, true);
+      document.removeEventListener('copy', handleCopy, true);
+      document.removeEventListener('cut', handleCut, true);
+      document.removeEventListener('keydown', handleCopyPasteHotkey, true);
       document.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [isSessionActive, handleTabSwitch, handleWindowBlur, handleCopyPaste]);
