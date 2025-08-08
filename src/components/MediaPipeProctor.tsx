@@ -64,6 +64,8 @@ export default function MediaPipeProctor({
   const eventCooldowns = useRef<Map<string, number>>(new Map());
   const driftFramesRef = useRef<number>(0);
   const facingOkRef = useRef<boolean>(true);
+  const noFaceFramesRef = useRef<number>(0);
+  const monitoringStartTimeRef = useRef<number>(0);
   // Audio/VAD state
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -402,6 +404,9 @@ export default function MediaPipeProctor({
 
       // Store the stream and set monitoring to true (this will render the video element)
       setPendingStream(stream);
+      // Reset counters and set monitoring start time
+      noFaceFramesRef.current = 0;
+      monitoringStartTimeRef.current = performance.now();
       setIsMonitoring(true);
       
       console.log('🎬 Set monitoring to true and stored pending stream');
@@ -537,13 +542,27 @@ export default function MediaPipeProctor({
     
     // No face detected
     if (faces.length === 0) {
-      triggerEvent({
-        type: 'face_not_detected',
-        timestamp,
-        severity: 'high',
-        data: { faceCount: 0 }
-      });
+      // Grace period during warm-up to avoid false alarms right after start
+      const warmupMs = 1500; // 1.5s grace
+      if (timestamp - monitoringStartTimeRef.current < warmupMs) {
+        return;
+      }
+      // Require consecutive frames without a face before flagging
+      noFaceFramesRef.current += 1;
+      const thresholdFrames = sensitivity === 'high' ? 8 : sensitivity === 'medium' ? 12 : 16; // ~0.25–0.5s
+      if (noFaceFramesRef.current >= thresholdFrames) {
+        triggerEvent({
+          type: 'face_not_detected',
+          timestamp,
+          severity: 'high',
+          data: { faceCount: 0 }
+        });
+        noFaceFramesRef.current = 0; // reset after triggering
+      }
       return;
+    } else {
+      // Reset counter when we see a face
+      noFaceFramesRef.current = 0;
     }
 
     // Multiple faces detected
