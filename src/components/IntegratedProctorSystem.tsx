@@ -72,6 +72,9 @@ export default function IntegratedProctorSystem({
   const eventThrottler = useRef(new EventThrottler());
   const eventBatcher = useRef<EventBatcher | null>(null);
   const isInitialized = useRef(false);
+  // Mouse drift tracking
+  const mouseTraceRef = useRef<Array<{ x: number; y: number; t: number }>>([]);
+  const lastMouseDriftMsRef = useRef<number>(0);
 
   // Native browser monitoring
   const [nativeEvents, setNativeEvents] = useState<{
@@ -357,6 +360,70 @@ export default function IntegratedProctorSystem({
     };
     window.addEventListener('integrity:question-time-exceeded', handleQuestionOverrun as EventListener);
 
+    // Mouse drift detection
+    const mouseMoveHandler = (e: MouseEvent) => {
+      if (!session || !eventBatcher.current) return;
+      const now = Date.now();
+      const trace = mouseTraceRef.current;
+      trace.push({ x: e.clientX, y: e.clientY, t: now });
+      // Keep last ~2 seconds
+      while (trace.length && now - trace[0].t > 2000) trace.shift();
+      if (trace.length < 5) return;
+      const durationMs = now - trace[0].t;
+      if (durationMs < 1200) return;
+      // Path length and displacement
+      let path = 0;
+      for (let i = 1; i < trace.length; i++) {
+        const dx = trace[i].x - trace[i - 1].x;
+        const dy = trace[i].y - trace[i - 1].y;
+        path += Math.hypot(dx, dy);
+      }
+      const dx = trace[trace.length - 1].x - trace[0].x;
+      const dy = trace[trace.length - 1].y - trace[0].y;
+      const displacement = Math.hypot(dx, dy);
+      const linearity = displacement / (path || 1);
+      if (path >= 400 && linearity >= 0.9) {
+        // Cooldown 5s
+        if (now - lastMouseDriftMsRef.current < 5000) return;
+        lastMouseDriftMsRef.current = now;
+        const severity: ProctorEvent['severity'] = (path > 800 || durationMs > 3000) ? 'medium' : 'low';
+        if (eventThrottler.current.shouldSendEvent('mouse_drift')) {
+          eventBatcher.current.addEvent({
+            session_uuid: session.session_uuid,
+            user_id: userId,
+            event_type: 'mouse_drift',
+            data: { event_subtype: 'linear_drift', path: Math.round(path), displacement: Math.round(displacement), duration_ms: durationMs, linearity: Number(linearity.toFixed(2)) },
+            severity,
+            flagged: false
+          });
+          setStats(prev => ({ ...prev, eventsCount: prev.eventsCount + 1 }));
+        }
+      }
+    };
+
+    const mouseOutHandler = (e: MouseEvent) => {
+      if (!session || !eventBatcher.current) return;
+      const to = (e as any).relatedTarget || (e as any).toElement;
+      if (to) return; // Still inside window
+      // Cooldown 5s
+      const now = Date.now();
+      if (now - lastMouseDriftMsRef.current < 5000) return;
+      lastMouseDriftMsRef.current = now;
+      if (eventThrottler.current.shouldSendEvent('mouse_drift')) {
+        eventBatcher.current.addEvent({
+          session_uuid: session.session_uuid,
+          user_id: userId,
+          event_type: 'mouse_drift',
+          data: { event_subtype: 'cursor_left_window', timestamp: now },
+          severity: 'medium',
+          flagged: false
+        });
+        setStats(prev => ({ ...prev, eventsCount: prev.eventsCount + 1 }));
+      }
+    };
+    document.addEventListener('mousemove', mouseMoveHandler, true);
+    window.addEventListener('mouseout', mouseOutHandler, true);
+
     // Cleanup
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -367,6 +434,8 @@ export default function IntegratedProctorSystem({
       document.removeEventListener('keydown', handleCopyPasteHotkey, true);
       document.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('integrity:question-time-exceeded', handleQuestionOverrun as EventListener);
+      document.removeEventListener('mousemove', mouseMoveHandler, true);
+      window.removeEventListener('mouseout', mouseOutHandler, true);
     };
   }, [isSessionActive, handleTabSwitch, handleWindowBlur, handleCopyPaste, userId, session, handleCopyPasteHotkey]);
 
