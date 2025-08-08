@@ -73,6 +73,7 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
     const [loading, setLoading] = useState(true);
     const [selectedEvent, setSelectedEvent] = useState<ProctorEvent | null>(null);
     const [filterSeverity, setFilterSeverity] = useState<SeverityLevel | 'all'>('all');
+    const [viewMode, setViewMode] = useState<'list' | 'timeline'>('timeline');
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -149,17 +150,29 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-semibold text-white">Assessment Timeline</h3>
                 
-                {/* Severity Filter */}
-                <select
-                    value={filterSeverity}
-                    onChange={(e) => setFilterSeverity(e.target.value as SeverityLevel | 'all')}
-                    className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700"
-                >
-                    <option value="all">All Events ({events.length})</option>
-                    <option value="low">Low Severity ({events.filter(e => e.severity === 'low').length})</option>
-                    <option value="medium">Medium Severity ({events.filter(e => e.severity === 'medium').length})</option>
-                    <option value="high">High Severity ({events.filter(e => e.severity === 'high').length})</option>
-                </select>
+                <div className="flex items-center gap-3">
+                    <select
+                        value={filterSeverity}
+                        onChange={(e) => setFilterSeverity(e.target.value as SeverityLevel | 'all')}
+                        className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700"
+                    >
+                        <option value="all">All Events ({events.length})</option>
+                        <option value="low">Low Severity ({events.filter(e => e.severity === 'low').length})</option>
+                        <option value="medium">Medium Severity ({events.filter(e => e.severity === 'medium').length})</option>
+                        <option value="high">High Severity ({events.filter(e => e.severity === 'high').length})</option>
+                    </select>
+
+                    <div className="flex bg-gray-800 border border-gray-700 rounded-lg overflow-hidden">
+                        <button
+                            onClick={() => setViewMode('timeline')}
+                            className={`px-3 py-2 text-sm ${viewMode === 'timeline' ? 'bg-blue-600 text-white' : 'text-gray-300'}`}
+                        >Timeline</button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-300'}`}
+                        >List</button>
+                    </div>
+                </div>
             </div>
 
             {/* Event Statistics */}
@@ -180,80 +193,12 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
                 </div>
             )}
 
-            {/* Timeline */}
-            <div className="space-y-6">
-                {Object.entries(groupedEvents).map(([timeKey, timeEvents]) => (
-                    <div key={timeKey} className="relative">
-                        {/* Time Header */}
-                        <div className="flex items-center mb-4">
-                            <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                            <span className="text-gray-400 font-medium">{timeKey}</span>
-                            <div className="flex-1 h-px bg-gray-700 ml-4"></div>
-                        </div>
-
-                        {/* Events for this time */}
-                        <div className="space-y-3 ml-6">
-                            {timeEvents.map((event, index) => {
-                                const safeEventType = getEventType(event.type);
-                                const IconComponent = eventIcons[safeEventType] || AlertTriangle;
-                                return (
-                                    <div
-                                        key={index}
-                                        onClick={() => setSelectedEvent(event)}
-                                        className={`
-                                            flex items-start p-4 rounded-lg cursor-pointer transition-colors
-                                            ${severityColors[event.severity] || 'text-gray-400 bg-gray-900/20'}
-                                            hover:bg-opacity-40
-                                        `}
-                                    >
-                                        <IconComponent className="w-5 h-5 mr-3 mt-0.5" />
-                                        
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="font-medium">
-                                                    {formatEventType(event.type)}
-                                                </span>
-                                                <span className="text-xs opacity-70">
-                                                    {event.timestamp ? format(new Date(event.timestamp), 'HH:mm:ss') : 'Unknown time'}
-                                                </span>
-                                            </div>
-                                            
-                                            <p className="text-sm opacity-80">
-                                                {getEventDescription(event)}
-                                            </p>
-
-                                            {/* Severity Badge */}
-                                            <div className="mt-2">
-                                                <span className={`
-                                                    px-2 py-1 rounded text-xs font-medium
-                                                    ${severityColors[event.severity] || 'text-gray-400 bg-gray-900/20'}
-                                                `}>
-                                                    {(event.severity || 'unknown').toUpperCase()}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
-
-                {filteredEvents.length === 0 && events.length > 0 && (
-                    <div className="text-center py-8">
-                        <AlertTriangle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                        <p className="text-gray-400">No events found for selected severity level</p>
-                    </div>
-                )}
-
-                {events.length === 0 && (
-                    <div className="text-center py-8">
-                        <Camera className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                        <p className="text-gray-400">No integrity events recorded</p>
-                        <p className="text-gray-500 text-sm mt-2">This indicates a clean assessment session</p>
-                    </div>
-                )}
-            </div>
+            {/* Views */}
+            {viewMode === 'timeline' ? (
+                <TimelineView events={filteredEvents} onSelect={setSelectedEvent} />
+            ) : (
+                <ListView groupedEvents={groupedEvents} events={events} onSelect={setSelectedEvent} />
+            )}
 
             {/* Event Detail Modal */}
             {selectedEvent && (
@@ -261,6 +206,132 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
                     event={selectedEvent}
                     onClose={() => setSelectedEvent(null)}
                 />
+            )}
+        </div>
+    );
+}
+
+function TimelineView({ events, onSelect }: { events: ProctorEvent[]; onSelect: (e: ProctorEvent) => void }) {
+    // Sort by time ascending for a flowing timeline
+    const sorted = [...events].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    return (
+        <div className="relative">
+            <div className="absolute left-6 top-0 bottom-0 w-px bg-gray-700" />
+            <div className="space-y-4">
+                {sorted.map((event, idx) => {
+                    const safeEventType = getEventType(event.type);
+                    const IconComponent = eventIcons[safeEventType] || AlertTriangle;
+                    return (
+                        <div key={idx} className="relative pl-16">
+                            {/* Dot */}
+                            <div className={`absolute left-4 top-2 w-3 h-3 rounded-full ${
+                                event.flagged ? 'bg-red-500 ring-4 ring-red-500/20' : event.severity === 'high' ? 'bg-red-400' : event.severity === 'medium' ? 'bg-yellow-400' : 'bg-blue-400'
+                            }`} />
+                            
+                            <div
+                                onClick={() => onSelect(event)}
+                                className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                                    event.flagged ? 'border-red-700 bg-red-900/10' : 'border-gray-700 bg-gray-800/40'
+                                } hover:bg-opacity-60`}
+                            >
+                                <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <IconComponent className="w-4 h-4 text-gray-300" />
+                                        <span className="font-medium text-white">{formatEventType(event.type)}</span>
+                                        {event.flagged && (
+                                            <span className="text-xs px-2 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800">FLAGGED</span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-gray-400">{event.timestamp ? `${format(new Date(event.timestamp), 'PP')} · ${format(new Date(event.timestamp), 'HH:mm:ss')}` : 'Unknown'}</span>
+                                </div>
+                                <div className="text-gray-300 text-sm">
+                                    {getEventDescription(event)}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            {events.length === 0 && (
+                <div className="text-center py-8">
+                    <Camera className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No integrity events recorded</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ListView({ groupedEvents, events, onSelect }: { groupedEvents: { [k: string]: ProctorEvent[] }; events: ProctorEvent[]; onSelect: (e: ProctorEvent) => void }) {
+    return (
+        <div className="space-y-6">
+            {Object.entries(groupedEvents).map(([timeKey, timeEvents]) => (
+                <div key={timeKey} className="relative">
+                    <div className="flex items-center mb-4">
+                        <Clock className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="text-gray-400 font-medium">{timeKey}</span>
+                        <div className="flex-1 h-px bg-gray-700 ml-4"></div>
+                    </div>
+                    <div className="space-y-3 ml-6">
+                        {timeEvents.map((event, index) => {
+                            const safeEventType = getEventType(event.type);
+                            const IconComponent = eventIcons[safeEventType] || AlertTriangle;
+                            return (
+                                <div
+                                    key={index}
+                                    onClick={() => onSelect(event)}
+                                    className={`
+                                        flex items-start p-4 rounded-lg cursor-pointer transition-colors
+                                        ${severityColors[event.severity] || 'text-gray-400 bg-gray-900/20'}
+                                        hover:bg-opacity-40
+                                    `}
+                                >
+                                    <IconComponent className="w-5 h-5 mr-3 mt-0.5" />
+                                    
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="font-medium">
+                                                {formatEventType(event.type)}
+                                            </span>
+                                            <span className="text-xs opacity-70">
+                                                {event.timestamp ? `${format(new Date(event.timestamp), 'PP')} · ${format(new Date(event.timestamp), 'HH:mm:ss')}` : 'Unknown time'}
+                                            </span>
+                                        </div>
+                                        
+                                        <p className="text-sm opacity-80">
+                                            {getEventDescription(event)}
+                                        </p>
+
+                                        {/* Severity Badge */}
+                                        <div className="mt-2">
+                                            <span className={`
+                                                px-2 py-1 rounded text-xs font-medium
+                                                ${severityColors[event.severity] || 'text-gray-400 bg-gray-900/20'}
+                                            `}>
+                                                {(event.severity || 'unknown').toUpperCase()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+
+            {Object.keys(groupedEvents).length === 0 && events.length > 0 && (
+                <div className="text-center py-8">
+                    <AlertTriangle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No events found for selected severity level</p>
+                </div>
+            )}
+
+            {events.length === 0 && (
+                <div className="text-center py-8">
+                    <Camera className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No integrity events recorded</p>
+                    <p className="text-gray-500 text-sm mt-2">This indicates a clean assessment session</p>
+                </div>
             )}
         </div>
     );
@@ -325,7 +396,7 @@ function EventDetailModal({
                     <div>
                         <label className="text-sm text-gray-400">Timestamp</label>
                         <p className="text-white">
-                            {event.timestamp ? format(new Date(event.timestamp), 'PPpp') : 'Unknown timestamp'}
+                            {event.timestamp ? `${format(new Date(event.timestamp), 'PPpp')} (${new Date(event.timestamp).toLocaleTimeString(undefined, { timeZoneName: 'short' }).split(' ').slice(-1)[0]})` : 'Unknown timestamp'}
                         </p>
                     </div>
 

@@ -9,6 +9,7 @@ export interface ProctorEvent {
   timestamp: number;
   severity: 'low' | 'medium' | 'high';
   data: any;
+  flagged?: boolean;
 }
 
 export interface IntegritySession {
@@ -83,6 +84,28 @@ class IntegrityAPI {
     return response.json();
   }
 
+  private normalizeTimestampToMs(value: any): number {
+    if (typeof value === 'number') return value;
+    if (typeof value !== 'string') return Date.now();
+    // Ensure ISO 8601 and assume UTC if no timezone
+    let iso = value.includes('T') ? value : value.replace(' ', 'T');
+    const hasTz = /[zZ]|[\+\-]\d{2}:?\d{2}$/.test(iso);
+    if (!hasTz) iso += 'Z';
+    const ms = Date.parse(iso);
+    return isNaN(ms) ? Date.now() : ms;
+  }
+
+  private normalizeSessionTimestamps(session: any) {
+    if (!session) return session;
+    if (session.session_start) {
+      session.session_start = new Date(this.normalizeTimestampToMs(session.session_start)).toISOString();
+    }
+    if (session.session_end) {
+      session.session_end = new Date(this.normalizeTimestampToMs(session.session_end)).toISOString();
+    }
+    return session;
+  }
+
   // Session Management
   async createSession(data: {
     user_id: number;
@@ -90,14 +113,16 @@ class IntegrityAPI {
     task_id?: number;
     monitoring_config?: any;
   }): Promise<IntegritySession> {
-    return this.makeRequest('/sessions', {
+    const session = await this.makeRequest('/sessions', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return this.normalizeSessionTimestamps(session);
   }
 
   async getSession(sessionUuid: string): Promise<IntegritySession> {
-    return this.makeRequest(`/sessions/${sessionUuid}`);
+    const session = await this.makeRequest(`/sessions/${sessionUuid}`);
+    return this.normalizeSessionTimestamps(session);
   }
 
   async updateSessionStatus(
@@ -165,10 +190,10 @@ class IntegrityAPI {
     // Map backend fields to frontend ProctorEvent shape if needed
     return (res || []).map((e: any) => ({
       type: e.event_type ?? e.type,
-      // Backend returns ISO timestamp; convert to epoch ms for timeline grouping
-      timestamp: typeof e.timestamp === 'string' ? Date.parse(e.timestamp) : (e.timestamp ?? Date.now()),
+      timestamp: this.normalizeTimestampToMs(e.timestamp),
       severity: e.severity ?? 'medium',
-      data: e.data ?? {}
+      data: e.data ?? {},
+      flagged: Boolean(e.flagged)
     } as ProctorEvent));
   }
 
@@ -223,7 +248,15 @@ class IntegrityAPI {
 
   // Analysis
   async getSessionAnalysis(sessionUuid: string): Promise<SessionAnalysis> {
-    return this.makeRequest(`/sessions/${sessionUuid}/analysis`);
+    const analysis = await this.makeRequest(`/sessions/${sessionUuid}/analysis`);
+    if (analysis?.session) this.normalizeSessionTimestamps(analysis.session);
+    if (Array.isArray(analysis?.recent_events)) {
+      analysis.recent_events = analysis.recent_events.map((e: any) => ({
+        ...e,
+        timestamp: this.normalizeTimestampToMs(e.timestamp),
+      }));
+    }
+    return analysis;
   }
 
   async getCohortOverview(
@@ -238,7 +271,20 @@ class IntegrityAPI {
     session_analyses?: SessionAnalysis[];
   }> {
     const params = includeDetails ? '?include_details=true' : '';
-    return this.makeRequest(`/cohorts/${cohortId}/integrity-overview${params}`);
+    const overview = await this.makeRequest(`/cohorts/${cohortId}/integrity-overview${params}`);
+    if (Array.isArray(overview?.session_analyses)) {
+      overview.session_analyses = overview.session_analyses.map((sa: any) => {
+        if (sa?.session) this.normalizeSessionTimestamps(sa.session);
+        if (Array.isArray(sa?.recent_events)) {
+          sa.recent_events = sa.recent_events.map((e: any) => ({
+            ...e,
+            timestamp: this.normalizeTimestampToMs(e.timestamp),
+          }));
+        }
+        return sa;
+      });
+    }
+    return overview;
   }
 
   // Analysis

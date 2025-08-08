@@ -27,6 +27,7 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
     const [overview, setOverview] = useState<CohortOverview | null>(null);
     const [sessionAnalyses, setSessionAnalyses] = useState<EnhancedSessionAnalysis[]>([]);
     const [selectedSession, setSelectedSession] = useState<string | null>(null);
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -220,13 +221,32 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
 
             {/* Sessions List */}
             <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800">
-                <div className="p-6 border-b border-gray-800">
-                    <h3 className="text-xl font-light text-white">Assessment Sessions</h3>
-                    <p className="text-gray-400 text-sm mt-1">Detailed integrity monitoring results</p>
+                <div className="p-6 border-b border-gray-800 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-xl font-light text-white">Assessment Sessions</h3>
+                        <p className="text-gray-400 text-sm mt-1">Detailed integrity monitoring results</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-400">Sort by</span>
+                        <select
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                            className="bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700 text-sm"
+                        >
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="divide-y divide-gray-700">
-                    {sessionAnalyses.map((analysis) => {
+                    {([...sessionAnalyses]
+                        .sort((a, b) => {
+                            const ta = a.session.session_start ? new Date(a.session.session_start).getTime() : 0;
+                            const tb = b.session.session_start ? new Date(b.session.session_start).getTime() : 0;
+                            return sortOrder === 'desc' ? tb - ta : ta - tb;
+                        })
+                    ).map((analysis) => {
                         const recommendation = getRecommendation(analysis.integrity_score || 0);
                         
                         return (
