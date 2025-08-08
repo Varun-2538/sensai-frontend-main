@@ -30,6 +30,8 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [generatingSessionUuid, setGeneratingSessionUuid] = useState<string | null>(null);
+    const [reportContent, setReportContent] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchOverview = async () => {
@@ -157,6 +159,36 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
     };
 
     const stats = getRecommendationStats();
+
+    const handleGenerateReportForSession = async (sessionUuid: string, userId: number) => {
+        try {
+            setError(null);
+            setGeneratingSessionUuid(sessionUuid);
+            const url = process.env.NEXT_PUBLIC_INTEGRITY_REPORT_URL;
+            if (!url) {
+                throw new Error('Report endpoint is not configured. Set NEXT_PUBLIC_INTEGRITY_REPORT_URL');
+            }
+            const events = await integrityAPI.getSessionEvents(sessionUuid);
+            const payload = { session_uuid: sessionUuid, user_id: userId, events };
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!resp.ok) {
+                const text = await resp.text();
+                throw new Error(text || `HTTP ${resp.status}`);
+            }
+            const data = await resp.json();
+            const report = typeof data === 'string' ? data : data.report || JSON.stringify(data);
+            setReportContent(report);
+        } catch (e) {
+            console.error('Failed to generate report', e);
+            setError(`Report generation failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+        } finally {
+            setGeneratingSessionUuid(null);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -300,6 +332,13 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
                                         >
                                             {selectedSession === analysis.session.session_uuid ? 'Hide Timeline' : 'View Timeline'}
                                         </button>
+                                        <button
+                                            onClick={() => handleGenerateReportForSession(analysis.session.session_uuid, analysis.session.user_id)}
+                                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                                            disabled={generatingSessionUuid === analysis.session.session_uuid}
+                                        >
+                                            {generatingSessionUuid === analysis.session.session_uuid ? 'Generating…' : 'Generate Report'}
+                                        </button>
                                     </div>
                                 </div>
 
@@ -346,6 +385,30 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
                     </div>
                 )}
             </div>
+
+            {/* Report Modal */}
+            {reportContent && (
+                <div className="fixed inset-0 bg-black/50 z-[1000] flex items-center justify-center">
+                    <div className="bg-gray-900 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-white">Generated Report</h3>
+                            <button
+                                onClick={() => setReportContent(null)}
+                                className="text-gray-400 hover:text-white text-xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <pre className="bg-gray-800 p-4 rounded text-sm text-gray-200 whitespace-pre-wrap break-words">{reportContent}</pre>
+                        <button
+                            onClick={() => setReportContent(null)}
+                            className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg w-full"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Summary and Insights */}
             {overview.total_sessions > 0 && (

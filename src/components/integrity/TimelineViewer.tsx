@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { 
     AlertTriangle, 
@@ -75,6 +76,8 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
     const [filterSeverity, setFilterSeverity] = useState<SeverityLevel | 'all'>('all');
     const [viewMode, setViewMode] = useState<'list' | 'timeline'>('timeline');
     const [error, setError] = useState<string | null>(null);
+    const [isReportLoading, setIsReportLoading] = useState<boolean>(false);
+    const [reportContent, setReportContent] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -104,6 +107,18 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
         }
     }, [sessionUuid]);
 
+    // Lock background scroll when any modal is open
+    useEffect(() => {
+        const hasOpenModal = Boolean(selectedEvent) || Boolean(reportContent);
+        const originalOverflow = document.documentElement.style.overflow;
+        if (hasOpenModal) {
+            document.documentElement.style.overflow = 'hidden';
+        }
+        return () => {
+            document.documentElement.style.overflow = originalOverflow;
+        };
+    }, [selectedEvent, reportContent]);
+
     const filteredEvents = useMemo(() => {
         if (filterSeverity === 'all') return events;
         return events.filter(event => event.severity === filterSeverity);
@@ -118,6 +133,42 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
         });
         return groups;
     }, [filteredEvents]);
+
+    const handleGenerateReport = async () => {
+        setIsReportLoading(true);
+        try {
+            const url = process.env.NEXT_PUBLIC_INTEGRITY_REPORT_URL;
+            if (!url) {
+                throw new Error('Report endpoint is not configured. Set NEXT_PUBLIC_INTEGRITY_REPORT_URL');
+            }
+
+            const payload = {
+                session_uuid: sessionUuid,
+                user_id: userId,
+                events,
+                // focus_event intentionally omitted for whole-test report
+            };
+
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!resp.ok) {
+                const text = await resp.text();
+                throw new Error(text || `HTTP ${resp.status}`);
+            }
+            const data = await resp.json();
+            // Accept either {report: string} or raw string
+            const report = typeof data === 'string' ? data : data.report || JSON.stringify(data);
+            setReportContent(report);
+        } catch (e) {
+            console.error('Failed to generate report', e);
+            setError(`Report generation failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+        } finally {
+            setIsReportLoading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -195,17 +246,34 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
 
             {/* Views */}
             {viewMode === 'timeline' ? (
-                <TimelineView events={filteredEvents} onSelect={setSelectedEvent} />
+                <TimelineView 
+                    events={filteredEvents} 
+                    onSelect={setSelectedEvent}
+                />
             ) : (
-                <ListView groupedEvents={groupedEvents} events={events} onSelect={setSelectedEvent} />
+                <ListView 
+                    groupedEvents={groupedEvents} 
+                    events={events} 
+                    onSelect={setSelectedEvent}
+                />
             )}
 
             {/* Event Detail Modal */}
-            {selectedEvent && (
+            {selectedEvent && createPortal(
                 <EventDetailModal
                     event={selectedEvent}
                     onClose={() => setSelectedEvent(null)}
-                />
+                />,
+                typeof window !== 'undefined' ? document.body : (undefined as unknown as Element)
+            )}
+
+            {/* Report Modal */}
+            {reportContent && createPortal(
+                <ReportModal 
+                    content={reportContent}
+                    onClose={() => setReportContent(null)}
+                />,
+                typeof window !== 'undefined' ? document.body : (undefined as unknown as Element)
             )}
         </div>
     );
@@ -373,8 +441,8 @@ function EventDetailModal({
     onClose: () => void; 
 }) {
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-gray-900 rounded-lg p-6 max-w-lg w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+            <div className="bg-gray-900 rounded-lg p-6 max-w-xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-white">Event Details</h3>
                     <button
@@ -427,6 +495,32 @@ function EventDetailModal({
                     )}
                 </div>
 
+                <button
+                    onClick={onClose}
+                    className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg w-full"
+                >
+                    Close
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// Report Modal Component
+function ReportModal({ content, onClose }: { content: string; onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]">
+            <div className="bg-gray-900 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-white">Generated Report</h3>
+                    <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-white text-xl"
+                    >
+                        ×
+                    </button>
+                </div>
+                <pre className="bg-gray-800 p-4 rounded text-sm text-gray-200 whitespace-pre-wrap break-words">{content}</pre>
                 <button
                     onClick={onClose}
                     className="mt-6 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg w-full"
