@@ -48,15 +48,27 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
                                 const userResponse = await fetch(
                                     `${process.env.NEXT_PUBLIC_BACKEND_URL}/users/${analysis.session.user_id}`
                                 );
-                                const userData = await userResponse.json();
                                 
+                                if (userResponse.ok) {
+                                    const userData = await userResponse.json();
+                                    return {
+                                        ...analysis,
+                                        user_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
+                                        user_email: userData.email
+                                    } as EnhancedSessionAnalysis;
+                                } else {
+                                    return {
+                                        ...analysis,
+                                        user_name: `User ${analysis.session.user_id}`,
+                                        user_email: `user${analysis.session.user_id}@unknown.com`
+                                    } as EnhancedSessionAnalysis;
+                                }
+                            } catch {
                                 return {
                                     ...analysis,
-                                    user_name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim(),
-                                    user_email: userData.email
+                                    user_name: `User ${analysis.session.user_id}`,
+                                    user_email: `user${analysis.session.user_id}@unknown.com`
                                 } as EnhancedSessionAnalysis;
-                            } catch {
-                                return analysis as EnhancedSessionAnalysis;
                             }
                         })
                     );
@@ -65,7 +77,7 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
                 }
             } catch (error) {
                 console.error('Failed to fetch integrity overview:', error);
-                setError('Failed to load integrity data');
+                setError(`Failed to load integrity data: ${error instanceof Error ? error.message : 'Unknown error'}`);
             } finally {
                 setLoading(false);
             }
@@ -76,15 +88,24 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
 
     if (loading) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-8">
                 <div className="animate-pulse">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="bg-gray-900 p-6 rounded-lg">
-                                <div className="h-4 bg-gray-700 rounded w-3/4 mb-2"></div>
-                                <div className="h-8 bg-gray-700 rounded w-1/2"></div>
+                            <div key={i} className="bg-gradient-to-br from-gray-900 to-gray-800 p-6 rounded-xl border border-gray-700">
+                                <div className="h-4 bg-gray-700 rounded w-3/4 mb-3"></div>
+                                <div className="h-8 bg-gray-600 rounded w-1/2 mb-2"></div>
+                                <div className="h-3 bg-gray-700 rounded w-1/4"></div>
                             </div>
                         ))}
+                    </div>
+                    <div className="bg-gray-900 rounded-xl p-6 border border-gray-700">
+                        <div className="h-6 bg-gray-700 rounded w-1/3 mb-6"></div>
+                        <div className="space-y-4">
+                            {[...Array(3)].map((_, i) => (
+                                <div key={i} className="h-16 bg-gray-800 rounded-lg"></div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -93,9 +114,18 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
 
     if (error || !overview) {
         return (
-            <div className="text-center py-12">
-                <AlertTriangle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">{error || 'Failed to load integrity overview'}</p>
+            <div className="text-center py-16">
+                <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800 p-12 max-w-md mx-auto">
+                    <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-6" />
+                    <h3 className="text-xl font-light text-white mb-3">Failed to Load Data</h3>
+                    <p className="text-gray-400 leading-relaxed">{error || 'Failed to load integrity overview'}</p>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer"
+                    >
+                        Retry
+                    </button>
+                </div>
             </div>
         );
     }
@@ -131,55 +161,68 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
         <div className="space-y-6">
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-gray-900 p-6 rounded-lg">
+                <div className="bg-gradient-to-br from-blue-900/20 to-blue-800/10 p-6 rounded-xl border border-blue-800/30 backdrop-blur-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-gray-400 text-sm">Total Sessions</p>
-                            <p className="text-2xl font-bold text-white">{overview.total_sessions}</p>
+                            <p className="text-blue-300/80 text-sm font-medium">Total Sessions</p>
+                            <p className="text-3xl font-light text-white mt-2">{overview.total_sessions}</p>
+                            <p className="text-xs text-blue-400 mt-1">Active assessments</p>
                         </div>
-                        <Users className="w-8 h-8 text-blue-400" />
+                        <div className="bg-blue-600/20 p-3 rounded-xl">
+                            <Users className="w-8 h-8 text-blue-400" />
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-gray-900 p-6 rounded-lg">
+                <div className="bg-gradient-to-br from-green-900/20 to-green-800/10 p-6 rounded-xl border border-green-800/30 backdrop-blur-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-gray-400 text-sm">Pass Rate</p>
-                            <p className="text-2xl font-bold text-green-400">
+                            <p className="text-green-300/80 text-sm font-medium">Pass Rate</p>
+                            <p className="text-3xl font-light text-white mt-2">
                                 {overview.total_sessions > 0 ? Math.round((stats.pass / overview.total_sessions) * 100) : 0}%
                             </p>
+                            <p className="text-xs text-green-400 mt-1">{stats.pass} successful sessions</p>
                         </div>
-                        <CheckCircle className="w-8 h-8 text-green-400" />
+                        <div className="bg-green-600/20 p-3 rounded-xl">
+                            <CheckCircle className="w-8 h-8 text-green-400" />
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-gray-900 p-6 rounded-lg">
+                <div className="bg-gradient-to-br from-yellow-900/20 to-yellow-800/10 p-6 rounded-xl border border-yellow-800/30 backdrop-blur-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-gray-400 text-sm">Need Review</p>
-                            <p className="text-2xl font-bold text-yellow-400">{stats.review}</p>
+                            <p className="text-yellow-300/80 text-sm font-medium">Need Review</p>
+                            <p className="text-3xl font-light text-white mt-2">{stats.review}</p>
+                            <p className="text-xs text-yellow-400 mt-1">Sessions flagged</p>
                         </div>
-                        <AlertTriangle className="w-8 h-8 text-yellow-400" />
+                        <div className="bg-yellow-600/20 p-3 rounded-xl">
+                            <AlertTriangle className="w-8 h-8 text-yellow-400" />
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-gray-900 p-6 rounded-lg">
+                <div className="bg-gradient-to-br from-purple-900/20 to-purple-800/10 p-6 rounded-xl border border-purple-800/30 backdrop-blur-sm">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-gray-400 text-sm">Avg Integrity Score</p>
-                            <p className="text-2xl font-bold text-white">
+                            <p className="text-purple-300/80 text-sm font-medium">Avg Integrity Score</p>
+                            <p className="text-3xl font-light text-white mt-2">
                                 {Math.round(overview.average_integrity_score || 0)}
                             </p>
+                            <p className="text-xs text-purple-400 mt-1">Out of 100</p>
                         </div>
-                        <Shield className="w-8 h-8 text-purple-400" />
+                        <div className="bg-purple-600/20 p-3 rounded-xl">
+                            <Shield className="w-8 h-8 text-purple-400" />
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Sessions List */}
-            <div className="bg-gray-900 rounded-lg">
-                <div className="p-6 border-b border-gray-700">
-                    <h3 className="text-lg font-semibold text-white">Assessment Sessions</h3>
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800">
+                <div className="p-6 border-b border-gray-800">
+                    <h3 className="text-xl font-light text-white">Assessment Sessions</h3>
+                    <p className="text-gray-400 text-sm mt-1">Detailed integrity monitoring results</p>
                 </div>
 
                 <div className="divide-y divide-gray-700">
@@ -272,12 +315,14 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
                 </div>
 
                 {sessionAnalyses.length === 0 && (
-                    <div className="p-12 text-center">
-                        <Clock className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                        <p className="text-gray-400">No integrity sessions found for this cohort</p>
-                        <p className="text-gray-500 text-sm mt-2">
-                            Sessions will appear here once learners start integrity-monitored assessments
-                        </p>
+                    <div className="p-16 text-center">
+                        <div className="bg-gray-800/50 rounded-xl p-8 max-w-sm mx-auto">
+                            <Clock className="w-16 h-16 text-gray-600 mx-auto mb-6" />
+                            <h4 className="text-lg font-light text-white mb-3">No Sessions Yet</h4>
+                            <p className="text-gray-400 leading-relaxed">
+                                No integrity sessions found for this cohort. Sessions will appear here once learners start integrity-monitored assessments.
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>
@@ -347,3 +392,4 @@ export default function IntegrityDashboard({ cohortId }: IntegrityDashboardProps
         </div>
     );
 }
+

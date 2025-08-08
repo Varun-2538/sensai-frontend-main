@@ -122,51 +122,85 @@ export default function IntegrityLearnerView({
     // Show permissions request screen
     if (!permissionsGranted) {
         return (
-            <div className="min-h-screen bg-black text-white flex items-center justify-center">
-                <div className="max-w-2xl mx-auto text-center p-8">
-                    <Shield className="w-16 h-16 mx-auto mb-6 text-blue-400" />
-                    <h1 className="text-3xl font-bold mb-4">Integrity Assessment</h1>
-                    <p className="text-gray-300 mb-8">
-                        This assessment includes integrity monitoring to ensure fairness. 
-                        We need access to your camera and microphone for proctoring purposes.
-                    </p>
-                    
-                    <div className="bg-gray-900 rounded-lg p-6 mb-8">
-                        <h3 className="text-lg font-semibold mb-4">What we monitor:</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                            <div className="flex items-center space-x-3">
-                                <Eye className="w-5 h-5 text-blue-400" />
-                                <span>Face presence detection</span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                                <Mic className="w-5 h-5 text-blue-400" />
-                                <span>Background noise monitoring</span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                                <Monitor className="w-5 h-5 text-yellow-400" />
-                                <span>Tab switching detection</span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                                <Shield className="w-5 h-5 text-green-400" />
-                                <span>Copy/paste monitoring</span>
+            <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+                <div className="max-w-3xl mx-auto text-center">
+                    <div className="bg-gradient-to-b from-gray-900 to-black border border-gray-800 rounded-2xl p-8 md:p-12 shadow-2xl">
+                        <div className="relative mb-8">
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full opacity-20 blur-xl"></div>
+                            <Shield className="relative w-20 h-20 mx-auto text-blue-400" />
+                        </div>
+                        
+                        <h1 className="text-4xl md:text-5xl font-light mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                            Integrity Assessment
+                        </h1>
+                        
+                        <p className="text-lg text-gray-300 mb-10 leading-relaxed">
+                            This assessment includes comprehensive integrity monitoring to ensure fairness and maintain academic standards. 
+                            Camera and microphone access is required for proctoring.
+                        </p>
+                        
+                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 mb-10 border border-gray-700">
+                            <h3 className="text-xl font-light mb-6 text-white">Monitoring Features</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                                <div className="flex items-start space-x-4 group">
+                                    <div className="bg-blue-600/20 p-2 rounded-lg group-hover:bg-blue-600/30 transition-colors">
+                                        <Eye className="w-5 h-5 text-blue-400" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-white">Identity Verification</div>
+                                        <div className="text-sm text-gray-400">Continuous face presence detection</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-4 group">
+                                    <div className="bg-green-600/20 p-2 rounded-lg group-hover:bg-green-600/30 transition-colors">
+                                        <Mic className="w-5 h-5 text-green-400" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-white">Audio Monitoring</div>
+                                        <div className="text-sm text-gray-400">Background noise and voice detection</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-4 group">
+                                    <div className="bg-yellow-600/20 p-2 rounded-lg group-hover:bg-yellow-600/30 transition-colors">
+                                        <Monitor className="w-5 h-5 text-yellow-400" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-white">Browser Activity</div>
+                                        <div className="text-sm text-gray-400">Tab switching and window focus</div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-start space-x-4 group">
+                                    <div className="bg-purple-600/20 p-2 rounded-lg group-hover:bg-purple-600/30 transition-colors">
+                                        <Shield className="w-5 h-5 text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <div className="font-medium text-white">Input Security</div>
+                                        <div className="text-sm text-gray-400">Copy/paste and keyboard monitoring</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <button
-                        onClick={requestPermissions}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
-                    >
-                        Grant Permissions & Start Assessment
-                    </button>
-                    
-                    <div className="mt-6">
-                        <button
-                            onClick={() => router.back()}
-                            className="text-gray-400 hover:text-white transition-colors"
-                        >
-                            Return to Course
-                        </button>
+                        <div className="space-y-4">
+                            <button
+                                onClick={requestPermissions}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-10 py-4 rounded-full font-medium text-lg transition-all duration-200 transform hover:scale-105 shadow-xl cursor-pointer"
+                            >
+                                Grant Permissions & Start Assessment
+                            </button>
+                            
+                            <div className="text-center">
+                                <button
+                                    onClick={() => router.back()}
+                                    className="text-gray-400 hover:text-white transition-colors px-6 py-2 rounded-lg cursor-pointer"
+                                >
+                                    ← Return to Course
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -189,53 +223,71 @@ export default function IntegrityLearnerView({
                 </div>
             )}
 
+            {/* Monitoring Status Bar */}
+            <div className="bg-gradient-to-r from-green-900/30 to-blue-900/30 border-b border-gray-800 backdrop-blur-sm">
+                <div className="px-4 py-3 max-w-7xl mx-auto">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                                <div className="relative">
+                                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                                    <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-400 animate-ping opacity-75"></div>
+                                </div>
+                                <span className="text-green-400 font-medium">Integrity Monitoring Active</span>
+                            </div>
+                            <div className="h-4 w-px bg-gray-600"></div>
+                            <div className="flex items-center space-x-2">
+                                <Shield className="w-4 h-4 text-blue-400" />
+                                <span className="text-gray-300 text-sm">Session Protected</span>
+                            </div>
+                        </div>
+                        
+                        <button
+                            onClick={() => router.back()}
+                            className="text-gray-400 hover:text-white transition-colors px-4 py-2 border border-gray-700 rounded-lg hover:border-gray-600 cursor-pointer"
+                        >
+                            Exit Assessment
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {/* Assessment Content */}
-            <div className="px-4 py-6 max-w-7xl mx-auto">
+            <div className="px-4 py-8 max-w-7xl mx-auto">
                 {cohort && (
                     <>
-                        <div className="mb-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h1 className="text-2xl md:text-3xl font-light text-white mb-2">
-                                        {cohort.name} - Integrity Assessment
-                                    </h1>
-                                    <div className="flex items-center space-x-4 text-sm text-gray-400">
-                                        <div className="flex items-center space-x-2">
-                                            <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse" />
-                                            <span>Monitoring Active</span>
-                                        </div>
-                                        <span>•</span>
-                                        <span>{cohortCourses.length} course{cohortCourses.length !== 1 ? 's' : ''} available</span>
-                                    </div>
-                                </div>
-                                
-                                <button
-                                    onClick={() => router.back()}
-                                    className="text-gray-400 hover:text-white transition-colors px-4 py-2 border border-gray-700 rounded-lg"
-                                >
-                                    Exit Assessment
-                                </button>
-                            </div>
+                        <div className="mb-8">
+                            <h1 className="text-3xl md:text-4xl font-light text-white mb-3">
+                                {cohort.name}
+                            </h1>
+                            <p className="text-gray-400 text-lg">
+                                Integrity-monitored assessment • {cohortCourses.length} course{cohortCourses.length !== 1 ? 's' : ''} available
+                            </p>
                         </div>
 
                         {cohortCourses.length > 0 && (
-                            <LearnerCohortView
-                                courseTitle=""
-                                modules={[]} // Will be populated by the component
-                                schoolId={schoolSlug}
-                                cohortId={cohortId}
-                                courses={cohortCourses}
-                                onCourseSelect={handleCourseSelect}
-                                activeCourseIndex={activeCourseIndex}
-                                integrityMode={true}
-                                sessionUuid={`INT-${cohortId}-${user?.id}`}
-                            />
+                            <div className="bg-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-800 overflow-hidden">
+                                <LearnerCohortView
+                                    courseTitle=""
+                                    modules={[]} // Will be populated by the component
+                                    schoolId={schoolSlug}
+                                    cohortId={cohortId}
+                                    courses={cohortCourses}
+                                    onCourseSelect={handleCourseSelect}
+                                    activeCourseIndex={activeCourseIndex}
+                                    integrityMode={true}
+                                    sessionUuid={`INT-${cohortId}-${user?.id}`}
+                                />
+                            </div>
                         )}
                         
                         {cohortCourses.length === 0 && (
-                            <div className="text-center py-12">
-                                <AlertTriangle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                                <p className="text-gray-400">No courses available in this cohort</p>
+                            <div className="text-center py-16">
+                                <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800 p-12 max-w-md mx-auto">
+                                    <AlertTriangle className="w-16 h-16 text-gray-600 mx-auto mb-6" />
+                                    <h3 className="text-xl font-light text-white mb-3">No Courses Available</h3>
+                                    <p className="text-gray-400">There are no courses available in this cohort for assessment.</p>
+                                </div>
                             </div>
                         )}
                     </>

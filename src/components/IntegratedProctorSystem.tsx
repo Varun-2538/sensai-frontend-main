@@ -325,134 +325,163 @@ export default function IntegratedProctorSystem({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Integrated Proctoring System
-            {isSessionActive && (
-              <Badge variant="default" className="ml-auto">
-                Active
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Error Display */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Session Controls */}
-            <div className="flex gap-2">
-              {!isSessionActive ? (
-                <Button 
-                  onClick={initializeSession}
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <Camera className="h-4 w-4" />
-                  Start Proctoring
-                </Button>
-              ) : (
-                <Button 
-                  onClick={endSession}
-                  variant="destructive"
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <CameraOff className="h-4 w-4" />
-                  End Session
-                </Button>
-              )}
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600/20 p-2 rounded-lg">
+              <Shield className="h-5 w-5 text-blue-400" />
             </div>
+            <div>
+              <h3 className="text-lg font-light text-white">Integrated Proctoring System</h3>
+              <p className="text-xs text-gray-400">Real-time monitoring active</p>
+            </div>
+          </div>
+          {isSessionActive && (
+            <div className="bg-green-600/20 px-3 py-1 rounded-full border border-green-600/30">
+              <span className="text-green-400 text-sm font-medium">Active</span>
+            </div>
+          )}
+        </div>
 
-            {/* Session Info */}
-            {session && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
-                <div className="text-center">
-                  <div className="text-sm text-gray-600">Session ID</div>
-                  <div className="font-mono text-xs">
-                    {session.session_uuid.slice(0, 8)}...
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-gray-600">Events</div>
-                  <div className="flex items-center justify-center gap-1">
-                    <Activity className="h-4 w-4" />
-                    <span className="font-semibold">{stats.eventsCount}</span>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-gray-600">Flags</div>
-                  <div className="flex items-center justify-center gap-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="font-semibold">{stats.flagsCount}</span>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-gray-600">Integrity Score</div>
-                  <div className={`flex items-center justify-center gap-1 font-semibold ${getScoreColor(stats.integrityScore)}`}>
-                    {getScoreIcon(stats.integrityScore)}
-                    <span>{stats.integrityScore}%</span>
-                  </div>
-                </div>
+        <div className="space-y-4">
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-900/30 border border-red-800/50 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <span className="text-red-300 text-sm">{error}</span>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Native Monitoring Stats */}
-            {isSessionActive && (
-              <div className="grid grid-cols-3 gap-4 p-3 bg-blue-50 rounded-lg">
-                <div className="text-center">
-                  <div className="text-xs text-blue-600">Tab Switches</div>
-                  <div className="font-semibold text-blue-800">{nativeEvents.tabSwitches}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-blue-600">Window Blurs</div>
-                  <div className="font-semibold text-blue-800">{nativeEvents.windowBlurs}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-blue-600">Copy/Paste</div>
-                  <div className="font-semibold text-blue-800">{nativeEvents.copyPastes}</div>
-                </div>
-              </div>
+          {/* Session Controls */}
+          <div className="flex gap-3">
+            {!isSessionActive ? (
+              <button 
+                onClick={initializeSession}
+                disabled={isLoading}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
+              >
+                <Camera className="h-4 w-4" />
+                Start Monitoring
+              </button>
+            ) : (
+              <button 
+                onClick={endSession}
+                disabled={isLoading}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
+              >
+                <CameraOff className="h-4 w-4" />
+                End Session
+              </button>
             )}
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Session Info */}
+          {session && (
+            <div className="grid grid-cols-2 gap-3 p-4 bg-gray-800/30 rounded-lg border border-gray-700">
+              <div className="text-center">
+                <div className="text-xs text-gray-400 mb-1">Session ID</div>
+                <div className="font-mono text-xs text-white">
+                  {session.session_uuid.slice(0, 8)}...
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-400 mb-1">Events</div>
+                <div className="flex items-center justify-center gap-1">
+                  <Activity className="h-3 w-3 text-blue-400" />
+                  <span className="font-medium text-white text-sm">{stats.eventsCount}</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-400 mb-1">Flags</div>
+                <div className="flex items-center justify-center gap-1">
+                  <AlertTriangle className="h-3 w-3 text-yellow-400" />
+                  <span className="font-medium text-white text-sm">{stats.flagsCount}</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-400 mb-1">Integrity Score</div>
+                <div className={`flex items-center justify-center gap-1 font-medium text-sm ${
+                  stats.integrityScore >= 80 ? 'text-green-400' :
+                  stats.integrityScore >= 60 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {getScoreIcon(stats.integrityScore)}
+                  <span>{stats.integrityScore}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Native Monitoring Stats */}
+          {isSessionActive && (
+            <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-800/30 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-blue-400 mb-3">Browser Activity</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-xs text-blue-300 mb-1">Tab Switches</div>
+                  <div className="font-medium text-white">{nativeEvents.tabSwitches}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-blue-300 mb-1">Window Blurs</div>
+                  <div className="font-medium text-white">{nativeEvents.windowBlurs}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-blue-300 mb-1">Copy/Paste</div>
+                  <div className="font-medium text-white">{nativeEvents.copyPastes}</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* MediaPipe Proctoring Component */}
       {isSessionActive && session && (
-        <MediaPipeProctor
-          sessionId={session.session_uuid}
-          onEventDetected={handleMediaPipeEvent}
-          enabled={true}
-          sensitivity={sensitivity}
-        />
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden">
+          <MediaPipeProctor
+            sessionId={session.session_uuid}
+            onEventDetected={handleMediaPipeEvent}
+            enabled={true}
+            sensitivity={sensitivity}
+            autoStart={true}
+          />
+        </div>
       )}
 
       {/* Instructions Card */}
       {!isSessionActive && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Instructions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-gray-600 space-y-2">
-              <p>• Ensure your camera and microphone are working properly</p>
-              <p>• Position yourself clearly in the camera frame</p>
-              <p>• Avoid switching tabs or opening other applications</p>
-              <p>• Keep your face visible and maintain focus on the assessment</p>
-              <p>• Do not attempt to copy or paste content</p>
+        <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 p-6">
+          <h4 className="text-lg font-light text-white mb-4">Monitoring Guidelines</h4>
+          <div className="space-y-3 text-sm text-gray-300">
+            <div className="flex items-start gap-3">
+              <div className="bg-green-600/20 p-1 rounded-lg mt-0.5">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              </div>
+              <span>Ensure camera and microphone are working properly</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-start gap-3">
+              <div className="bg-green-600/20 p-1 rounded-lg mt-0.5">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              </div>
+              <span>Position yourself clearly in the camera frame</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="bg-red-600/20 p-1 rounded-lg mt-0.5">
+                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+              </div>
+              <span>Avoid switching tabs or opening other applications</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="bg-red-600/20 p-1 rounded-lg mt-0.5">
+                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+              </div>
+              <span>Do not attempt to copy or paste content</span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

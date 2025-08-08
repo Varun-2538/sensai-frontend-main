@@ -358,10 +358,23 @@ export default function ClientSchoolLearnerView({ slug }: { slug: string }) {
                 <div className="container mx-auto">
                     <main>
                         {cohorts.length === 0 && (
-                            <div className="pt-24 px-4">
-                                <div className="flex flex-col items-center justify-center py-12 rounded-lg text-center">
-                                    <h3 className="text-xl font-light mb-2">No cohorts available</h3>
-                                    <p className="text-gray-400">You are not enrolled in any cohorts for this school</p>
+                            <div className="pt-24 px-4 min-h-screen flex items-center justify-center">
+                                <div className="max-w-md mx-auto text-center">
+                                    <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-8">
+                                        <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-2xl flex items-center justify-center">
+                                            <Building className="w-8 h-8 text-blue-400" />
+                                        </div>
+                                        <h3 className="text-2xl font-light text-white mb-3">No Cohorts Available</h3>
+                                        <p className="text-gray-400 leading-relaxed mb-6">
+                                            You are not enrolled in any cohorts for this school yet. Contact your instructor to get access.
+                                        </p>
+                                        <button
+                                            onClick={handleBackClick}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer"
+                                        >
+                                            Go Back Home
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -390,27 +403,34 @@ export default function ClientSchoolLearnerView({ slug }: { slug: string }) {
                                     <div className="w-full">
                                         {/* Mobile Cohort Banner - Always show on mobile */}
                                         {activeCohort && (
-                                            <div className="sm:hidden w-full bg-gradient-to-r from-teal-800 via-emerald-700 to-cyan-800 p-4 border-b border-emerald-600 shadow-md">
-                                                <div className="flex justify-between items-center">
-                                                    <div className="flex items-center">
-                                                        <button
-                                                            onClick={handleBackClick}
-                                                            className="mr-2 text-white hover:text-gray-200 transition-colors"
-                                                        >
-                                                            <ChevronLeft size={20} />
-                                                        </button>
-                                                        <h2 className="text-white font-light text-lg truncate mr-2">
-                                                            {activeCohort.name}
-                                                        </h2>
+                                            <div className="sm:hidden w-full bg-gradient-to-r from-slate-900 via-gray-900 to-black border-b border-gray-800 backdrop-blur-sm">
+                                                <div className="px-4 py-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <div className="flex items-center flex-1 min-w-0">
+                                                            <button
+                                                                onClick={handleBackClick}
+                                                                className="mr-3 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                                                            >
+                                                                <ChevronLeft size={20} />
+                                                            </button>
+                                                            <div className="min-w-0 flex-1">
+                                                                <h2 className="text-white font-light text-lg truncate">
+                                                                    {activeCohort.name}
+                                                                </h2>
+                                                                <p className="text-gray-400 text-xs">
+                                                                    {courses.length} course{courses.length !== 1 ? 's' : ''} available
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        {cohorts.length > 1 && (
+                                                            <button
+                                                                className="ml-3 bg-gray-800 hover:bg-gray-700 text-white font-light text-sm border border-gray-700 rounded-lg px-4 py-2 transition-all cursor-pointer"
+                                                                onClick={() => setShowCohortSelector(true)}
+                                                            >
+                                                                Switch
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                    {cohorts.length > 1 && (
-                                                        <button
-                                                            className="bg-teal-900 bg-opacity-80 text-white font-light text-sm border border-cyan-600 rounded-full px-3 py-1 hover:bg-emerald-700 hover:bg-opacity-70 transition-all cursor-pointer"
-                                                            onClick={() => setShowCohortSelector(true)}
-                                                        >
-                                                            Switch
-                                                        </button>
-                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -426,9 +446,18 @@ export default function ClientSchoolLearnerView({ slug }: { slug: string }) {
                                         />
 
                                         {courses.length === 0 ? (
-                                            <div className="pt-12 text-center px-4">
-                                                <h3 className="text-xl font-light mb-2">No courses available</h3>
-                                                <p className="text-gray-400">There are no courses in this cohort yet</p>
+                                            <div className="pt-12 px-4 min-h-[50vh] flex items-center justify-center">
+                                                <div className="max-w-sm mx-auto text-center">
+                                                    <div className="bg-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-800 p-8">
+                                                        <div className="w-12 h-12 mx-auto mb-4 bg-gray-800 rounded-xl flex items-center justify-center">
+                                                            <Building className="w-6 h-6 text-gray-400" />
+                                                        </div>
+                                                        <h3 className="text-lg font-light text-white mb-3">No Courses Yet</h3>
+                                                        <p className="text-gray-400 text-sm leading-relaxed">
+                                                            There are no courses available in this cohort yet. Check back later or contact your instructor.
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
                                         ) : (
                                             // Course Content using LearnerCohortView

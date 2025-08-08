@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Alert, AlertDescription } from './ui/alert';
+
 import { AlertTriangle, Eye, EyeOff, Camera, CameraOff } from 'lucide-react';
 
 // MediaPipe imports
@@ -28,13 +26,15 @@ interface MediaPipeProctorProps {
   onEventDetected: (event: ProctorEvent) => void;
   enabled?: boolean;
   sensitivity?: 'low' | 'medium' | 'high';
+  autoStart?: boolean;
 }
 
 export default function MediaPipeProctor({
   sessionId,
   onEventDetected,
   enabled = true,
-  sensitivity = 'medium'
+  sensitivity = 'medium',
+  autoStart = false
 }: MediaPipeProctorProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,6 +110,13 @@ export default function MediaPipeProctor({
       setPendingStream(null);
     }
   }, [pendingStream, isMonitoring]);
+
+  // Auto-start monitoring when requested and initialized
+  useEffect(() => {
+    if (autoStart && isInitialized && !isMonitoring) {
+      startMonitoring();
+    }
+  }, [autoStart, isInitialized]);
 
   // Setup video stream
   const setupVideoStream = async (stream: MediaStream) => {
@@ -596,203 +603,82 @@ export default function MediaPipeProctor({
   };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Camera className="h-5 w-5" />
-            MediaPipe Proctoring System
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Loading State */}
-            {isLoading && (
-              <Alert>
-                <AlertDescription>
-                  Loading MediaPipe models... This may take a moment.
-                </AlertDescription>
-              </Alert>
-            )}
+    <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6 text-gray-200">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="bg-purple-600/20 p-2 rounded-lg">
+          <Camera className="h-5 w-5 text-purple-400" />
+        </div>
+        <div>
+          <h3 className="text-lg font-light text-white">MediaPipe Proctoring System</h3>
+          <p className="text-xs text-gray-400">AI-powered face and pose detection</p>
+        </div>
+      </div>
 
-            {/* Error State */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+      <div className="flex gap-3 mb-4">
+        {!isMonitoring ? (
+          <button
+            onClick={startMonitoring}
+            disabled={isLoading}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
+          >
+            <Camera className="h-4 w-4" />
+            Start Monitoring
+          </button>
+        ) : (
+          <button
+            onClick={stopMonitoring}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
+          >
+            <CameraOff className="h-4 w-4" />
+            Stop Monitoring
+          </button>
+        )}
+      </div>
 
-            {/* Controls */}
-            <div className="flex gap-2">
-              {!isMonitoring ? (
-                <Button 
-                  onClick={startMonitoring} 
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  <Camera className="h-4 w-4" />
-                  Start Monitoring
-                </Button>
-              ) : (
-                <Button 
-                  onClick={stopMonitoring}
-                  variant="destructive"
-                  className="flex items-center gap-2"
-                >
-                  <CameraOff className="h-4 w-4" />
-                  Stop Monitoring
-                </Button>
-              )}
+      <div className="text-sm">
+        <span className="text-gray-400 mr-2">Status:</span>
+        <span className={isMonitoring ? 'text-green-400' : 'text-red-400'}>
+          {isMonitoring ? 'Active' : 'Inactive'}
+        </span>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mt-3 text-sm text-red-400">{error}</div>
+      )}
+
+      {/* Live Preview */}
+      {isMonitoring && (
+        <div className="mt-4 relative w-full max-w-2xl bg-black rounded-lg overflow-hidden border border-gray-700">
+          <video
+            ref={videoRef}
+            className="w-full h-auto"
+            playsInline
+            autoPlay
+            muted
+            controls={false}
+            style={{ minHeight: '260px', objectFit: 'cover' }}
+          />
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+          />
+
+          {/* Manual play fallback if browser blocks autoplay */}
+          {videoRef.current?.paused && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+              <button
+                onClick={async () => {
+                  try { await videoRef.current?.play(); } catch {}
+                }}
+                className="bg-white text-black px-4 py-2 rounded-lg cursor-pointer"
+              >
+                ▶ Click to start video
+              </button>
             </div>
-
-            {/* MediaPipe Status */}
-            {isInitialized && (
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>MediaPipe Status:</p>
-                <div className="flex gap-4 text-xs">
-                  <span className={faceDetector ? 'text-green-600' : 'text-red-600'}>
-                    Face Detection: {faceDetector ? '✓' : '✗'}
-                  </span>
-                  <span className={faceLandmarker ? 'text-green-600' : 'text-red-600'}>
-                    Face Landmarks: {faceLandmarker ? '✓' : '✗'}
-                  </span>
-                  <span className={poseLandmarker ? 'text-green-600' : 'text-red-600'}>
-                    Pose Detection: {poseLandmarker ? '✓' : '✗'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Video and Canvas */}
-            {isMonitoring && (
-              <div className="relative w-full max-w-2xl mx-auto bg-black rounded-lg overflow-hidden">
-                <video
-                  ref={videoRef}
-                  className="w-full h-auto rounded-lg border-2 border-green-500"
-                  playsInline
-                  autoPlay
-                  muted
-                  controls={false}
-                  style={{ 
-                    minHeight: '300px',
-                    objectFit: 'cover'
-                  }}
-                  onClick={async () => {
-                    // Manual play fallback if autoplay is blocked
-                    if (videoRef.current && videoRef.current.paused) {
-                      try {
-                        await videoRef.current.play();
-                        console.log('📱 Manual play successful');
-                      } catch (err) {
-                        console.error('❌ Manual play failed:', err);
-                      }
-                    }
-                  }}
-                />
-                <canvas
-                  ref={canvasRef}
-                  className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                />
-                
-                {/* Video Status Overlay */}
-                <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs">
-                  {streamRef.current ? 
-                    `🟢 Live - ${streamRef.current.getTracks().length} track(s)` : 
-                    '🔴 No Stream'
-                  }
-                </div>
-
-                {/* Manual Play Button (shown if video is paused) */}
-                {videoRef.current?.paused && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Button 
-                      onClick={async () => {
-                        if (videoRef.current) {
-                          try {
-                            await videoRef.current.play();
-                            console.log('▶ Manual play button clicked - success');
-                          } catch (err) {
-                            console.error('❌ Manual play button failed:', err);
-                          }
-                        }
-                      }}
-                      className="bg-white bg-opacity-90 text-black hover:bg-opacity-100"
-                    >
-                      ▶ Click to Play Video
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Recent Events */}
-            {currentEvents.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-semibold">Recent Events:</h4>
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {currentEvents.map((event, index) => (
-                    <div 
-                      key={index}
-                      className={`p-2 rounded text-sm ${
-                        event.severity === 'high' ? 'bg-red-100 text-red-800' :
-                        event.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      <div className="flex justify-between">
-                        <span className="font-medium">
-                          {event.type.replace(/_/g, ' ').toUpperCase()}
-                        </span>
-                        <span className="text-xs">
-                          {new Date(event.timestamp).toLocaleTimeString()}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Status */}
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>Session ID: {sessionId}</p>
-              <p>Sensitivity: {sensitivity}</p>
-              <p>Status: {isMonitoring ? 'Monitoring Active' : 'Monitoring Inactive'}</p>
-              {streamRef.current && (
-                <div className="bg-green-50 p-2 rounded">
-                  <p className="text-green-800 font-medium">📹 Camera Status:</p>
-                  <p className="text-green-700 text-xs">
-                    • Stream: {streamRef.current.active ? 'Active' : 'Inactive'}
-                  </p>
-                  <p className="text-green-700 text-xs">
-                    • Tracks: {streamRef.current.getTracks().length}
-                  </p>
-                  {streamRef.current.getTracks().map((track, index) => (
-                    <p key={index} className="text-green-700 text-xs">
-                      • {track.kind}: {track.enabled ? 'Enabled' : 'Disabled'} ({track.readyState})
-                    </p>
-                  ))}
-                </div>
-              )}
-              {videoRef.current && (
-                <div className="bg-blue-50 p-2 rounded">
-                  <p className="text-blue-800 font-medium">🎥 Video Element:</p>
-                  <p className="text-blue-700 text-xs">
-                    • Ready State: {videoRef.current.readyState} / 4
-                  </p>
-                  <p className="text-blue-700 text-xs">
-                    • Paused: {videoRef.current.paused ? 'Yes' : 'No'}
-                  </p>
-                  <p className="text-blue-700 text-xs">
-                    • Dimensions: {videoRef.current.videoWidth}x{videoRef.current.videoHeight}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }

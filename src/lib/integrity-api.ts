@@ -2,7 +2,7 @@
  * API client for integrity monitoring and proctoring
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 export interface ProctorEvent {
   type: 'face_not_detected' | 'multiple_faces' | 'looking_away' | 'head_movement' | 'pose_change' | 'tab_switch' | 'window_blur' | 'copy_paste' | 'suspicious_activity' | 'mouse_drift';
@@ -161,7 +161,15 @@ class IntegrityAPI {
     if (options.limit) params.append('limit', options.limit.toString());
 
     const query = params.toString();
-    return this.makeRequest(`/sessions/${sessionUuid}/events${query ? `?${query}` : ''}`);
+    const res = await this.makeRequest(`/sessions/${sessionUuid}/events${query ? `?${query}` : ''}`);
+    // Map backend fields to frontend ProctorEvent shape if needed
+    return (res || []).map((e: any) => ({
+      type: e.event_type ?? e.type,
+      // Backend returns ISO timestamp; convert to epoch ms for timeline grouping
+      timestamp: typeof e.timestamp === 'string' ? Date.parse(e.timestamp) : (e.timestamp ?? Date.now()),
+      severity: e.severity ?? 'medium',
+      data: e.data ?? {}
+    } as ProctorEvent));
   }
 
   async getUserEvents(

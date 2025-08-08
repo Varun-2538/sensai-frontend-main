@@ -89,7 +89,7 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
                 setEvents(safeEvents);
             } catch (error) {
                 console.error('Failed to fetch events:', error);
-                setError('Failed to load event timeline');
+                setError(`Failed to load event timeline: ${error instanceof Error ? error.message : 'Unknown error'}`);
             } finally {
                 setLoading(false);
             }
@@ -97,6 +97,9 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
 
         if (sessionUuid) {
             fetchEvents();
+        } else {
+            setError('No session UUID provided');
+            setLoading(false);
         }
     }, [sessionUuid]);
 

@@ -313,19 +313,24 @@ export default function LearnerCohortView({
     return (
         <div className="bg-black min-h-screen pb-16 lg:pb-0" role="main">
             {courseTitle && (
-                <div className="mb-4 md:mb-6">
-                    <h1 className="text-2xl md:text-3xl font-light text-white px-1 sm:px-0">
+                <div className="mb-6 md:mb-8">
+                    <h1 className="text-3xl md:text-4xl font-light text-white px-1 sm:px-0 mb-2">
                         {courseTitle}
                     </h1>
                     {integrityMode && (
-                        <div className="flex items-center space-x-2 mt-2 px-1 sm:px-0">
-                            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                            <span className="text-sm text-green-400 font-medium">Integrity Monitoring Active</span>
-                            {sessionUuid && (
-                                <span className="text-xs text-gray-500">
-                                    Session: {sessionUuid.slice(0, 8)}...
-                                </span>
-                            )}
+                        <div className="bg-gradient-to-r from-green-900/20 to-blue-900/20 border border-green-800/30 rounded-lg p-3 mt-4 px-1 sm:px-0">
+                            <div className="flex items-center space-x-3">
+                                <div className="relative">
+                                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                                    <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-400 animate-ping opacity-75"></div>
+                                </div>
+                                <span className="text-sm text-green-400 font-medium">Integrity Monitoring Active</span>
+                                {sessionUuid && (
+                                    <span className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded">
+                                        Session: {sessionUuid.slice(0, 8)}...
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -336,51 +341,44 @@ export default function LearnerCohortView({
                 <div className={`lg:w-2/3 lg:pr-8 ${showSidebar && activeMobileTab === MobileTab.Progress ? 'hidden lg:block' : ''}`}>
                     {/* Course Selector */}
                     {courses.length > 1 && (
-                        <div className="mb-8 sm:mb-10">
+                        <div className="mb-8 sm:mb-12">
                             {/* Desktop Tabs - Hidden on Mobile */}
                             <div className="hidden sm:block w-full">
-                                <div className="flex items-center border-b border-gray-900 overflow-x-auto scrollbar-hide">
-                                    {courses.map((course, index) => (
-                                        <button
-                                            key={course.id}
-                                            className={`px-8 py-4 text-base md:text-lg tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer flex-shrink-0 relative group ${index === activeCourseIndex
-                                                ? 'text-white font-light'
-                                                : 'text-gray-500 hover:text-gray-300 font-light'
-                                                }`}
-                                            onClick={() => handleCourseSelect(index)}
-                                        >
-                                            <span className="relative z-10">{course.name}</span>
-
-                                            {/* Active indicator - visible only for active tab */}
-                                            {index === activeCourseIndex && (
-                                                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-white" />
-                                            )}
-
-                                            {/* Hover indicator - visible only on hover for inactive tabs */}
-                                            {index !== activeCourseIndex && (
-                                                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gray-700 scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left" />
-                                            )}
-                                        </button>
-                                    ))}
+                                <div className="bg-gray-900/30 backdrop-blur-sm rounded-xl border border-gray-800 p-1 overflow-x-auto scrollbar-hide">
+                                    <div className="flex items-center space-x-1">
+                                        {courses.map((course, index) => (
+                                            <button
+                                                key={course.id}
+                                                className={`px-6 py-3 text-sm md:text-base whitespace-nowrap transition-all duration-200 cursor-pointer flex-shrink-0 rounded-lg font-light ${index === activeCourseIndex
+                                                    ? 'bg-white text-black shadow-lg'
+                                                    : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                                                    }`}
+                                                onClick={() => handleCourseSelect(index)}
+                                            >
+                                                {course.name}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Mobile Course Selector - Visible only on small screens */}
                             <div className="sm:hidden">
-                                {/* Current course indicator */}
-                                <button
-                                    onClick={() => setMobileDropdownOpen(true)}
-                                    className="w-full text-left py-3 px-1 border-b border-gray-800 flex items-center justify-between cursor-pointer group transition-opacity"
-                                    aria-haspopup="true"
-                                >
-                                    <div>
-                                        <div className="text-xs text-gray-500 mb-1">Current Course</div>
-                                        <div className="text-white font-light">{getActiveCourse()?.name || "Select Course"}</div>
-                                    </div>
-                                    <div className="bg-gray-800 rounded-full p-2 opacity-70 group-hover:opacity-100 transition-opacity">
-                                        <ChevronDown size={16} className="text-white transition-colors" />
-                                    </div>
-                                </button>
+                                <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800 p-4 mx-1">
+                                    <button
+                                        onClick={() => setMobileDropdownOpen(true)}
+                                        className="w-full text-left flex items-center justify-between cursor-pointer group"
+                                        aria-haspopup="true"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs text-gray-400 mb-1 font-medium">Current Course</div>
+                                            <div className="text-white font-light text-lg truncate">{getActiveCourse()?.name || "Select Course"}</div>
+                                        </div>
+                                        <div className="ml-3 bg-gray-800 hover:bg-gray-700 rounded-lg p-2 transition-colors">
+                                            <ChevronDown size={16} className="text-gray-400 group-hover:text-white transition-colors" />
+                                        </div>
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Mobile Dropdown using MobileDropdown component */}
@@ -424,9 +422,11 @@ export default function LearnerCohortView({
 
                                                    {/* Enhanced Quiz/Assessment Section */}
                            {!integrityMode && schoolId && cohortId && (
-                               <div className="bg-gray-900 rounded-lg p-6">
-                                   <h3 className="text-lg font-semibold text-white mb-3 flex items-center">
-                                       <CheckCircle className="w-5 h-5 mr-2 text-green-400" />
+                               <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-800 p-6">
+                                   <h3 className="text-xl font-light text-white mb-4 flex items-center">
+                                       <div className="bg-green-600/20 p-2 rounded-lg mr-3">
+                                           <CheckCircle className="w-5 h-5 text-green-400" />
+                                       </div>
                                        Quizzes & Assessments
                                    </h3>
                                    
@@ -435,21 +435,21 @@ export default function LearnerCohortView({
                                        {/* Find and display quiz tasks from modules */}
                                        {courses[activeCourseIndex]?.modules?.map((module) => 
                                            module.items?.filter(item => item.type === 'quiz').map((quiz) => (
-                                               <div key={quiz.id} className="p-3 bg-gray-800 rounded-lg">
-                                                   <div className="flex items-center justify-between mb-2">
-                                                       <h4 className="font-medium text-white text-sm">{quiz.title}</h4>
-                                                       <div className="flex items-center space-x-2">
+                                               <div key={quiz.id} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-4 hover:border-gray-600 transition-colors">
+                                                   <div className="flex items-start justify-between mb-3">
+                                                       <h4 className="font-light text-white text-base leading-snug flex-1 mr-3">{quiz.title}</h4>
+                                                       <div className="flex items-center space-x-2 flex-shrink-0">
                                                            {/* Show if it's assessment mode */}
                                                            {quiz.assessmentMode && (
-                                                               <span className="px-2 py-1 bg-purple-900/20 text-purple-400 text-xs rounded flex items-center">
+                                                               <span className="px-2 py-1 bg-purple-900/30 text-purple-400 text-xs rounded-lg flex items-center border border-purple-800/30">
                                                                    <Shield className="w-3 h-3 mr-1" />
                                                                    Assessment
                                                                </span>
                                                            )}
-                                                           <span className={`px-2 py-1 text-xs rounded ${
+                                                           <span className={`px-2 py-1 text-xs rounded-lg font-medium ${
                                                                quiz.status === 'published' 
-                                                                   ? 'bg-green-900/20 text-green-400' 
-                                                                   : 'bg-gray-700 text-gray-400'
+                                                                   ? 'bg-green-900/30 text-green-400 border border-green-800/30' 
+                                                                   : 'bg-gray-700/50 text-gray-400 border border-gray-600'
                                                            }`}>
                                                                {quiz.status === 'published' ? 'Available' : 'Draft'}
                                                            </span>
@@ -471,10 +471,10 @@ export default function LearnerCohortView({
                                                    {quiz.status === 'published' ? (
                                                        <Link
                                                            href={`/school/${schoolId}/cohort/${cohortId}/task/${quiz.id}${quiz.assessmentMode ? '?mode=assessment' : ''}`}
-                                                           className={`block w-full text-white text-center py-2 px-3 rounded text-sm transition-colors ${
+                                                           className={`block w-full text-white text-center py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 shadow-lg ${
                                                                quiz.assessmentMode 
-                                                                   ? 'bg-purple-600 hover:bg-purple-700' 
-                                                                   : 'bg-green-600 hover:bg-green-700'
+                                                                   ? 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800' 
+                                                                   : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
                                                            }`}
                                                        >
                                                            {quiz.assessmentMode ? 'Take Assessment' : 'Start Quiz'}
@@ -482,7 +482,7 @@ export default function LearnerCohortView({
                                                    ) : (
                                                        <button
                                                            disabled
-                                                           className="block w-full bg-gray-700 text-gray-400 text-center py-2 px-3 rounded text-sm cursor-not-allowed"
+                                                           className="block w-full bg-gray-700/50 text-gray-400 text-center py-3 px-4 rounded-lg text-sm cursor-not-allowed border border-gray-600"
                                                        >
                                                            Not Available Yet
                                                        </button>
@@ -490,9 +490,12 @@ export default function LearnerCohortView({
                                                </div>
                                            ))
                                        ) || (
-                                           <div className="text-center py-8 text-gray-500">
-                                               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                               <p>No quizzes available yet</p>
+                                           <div className="text-center py-12">
+                                               <div className="bg-gray-800/30 rounded-xl p-6">
+                                                   <CheckCircle className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+                                                   <h4 className="text-white font-light text-lg mb-2">No Quizzes Yet</h4>
+                                                   <p className="text-gray-400 text-sm">Quizzes and assessments will appear here when they become available.</p>
+                                               </div>
                                            </div>
                                        )}
                                    </div>
@@ -514,31 +517,41 @@ export default function LearnerCohortView({
 
             {/* Mobile Bottom Tabs - Only visible on mobile */}
             {showSidebar && (
-                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black to-[rgba(0,0,0,0.9)] border-t border-gray-900 z-20">
-                    <div className="flex h-16">
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black via-gray-900/95 to-transparent border-t border-gray-800 backdrop-blur-lg z-20">
+                    <div className="flex h-16 px-4">
                         <button
-                            className={`flex-1 flex flex-col items-center justify-center transition-colors ${activeMobileTab === MobileTab.Course
+                            className={`flex-1 flex flex-col items-center justify-center transition-all duration-200 ${activeMobileTab === MobileTab.Course
                                 ? 'text-white'
-                                : 'text-gray-500'
+                                : 'text-gray-500 hover:text-gray-300'
                                 }`}
                             onClick={() => setActiveMobileTab(MobileTab.Course)}
                         >
-                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                            </svg>
-                            <span className="text-xs font-light">Course</span>
+                            <div className={`p-1 rounded-lg transition-colors ${activeMobileTab === MobileTab.Course
+                                ? 'bg-white/10'
+                                : 'hover:bg-gray-800/50'
+                                }`}>
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                </svg>
+                            </div>
+                            <span className="text-xs font-light mt-1">Course</span>
                         </button>
                         <button
-                            className={`flex-1 flex flex-col items-center justify-center transition-colors ${activeMobileTab === MobileTab.Progress
+                            className={`flex-1 flex flex-col items-center justify-center transition-all duration-200 ${activeMobileTab === MobileTab.Progress
                                 ? 'text-white'
-                                : 'text-gray-500'
+                                : 'text-gray-500 hover:text-gray-300'
                                 }`}
                             onClick={() => setActiveMobileTab(MobileTab.Progress)}
                         >
-                            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            <span className="text-xs font-light">Progress</span>
+                            <div className={`p-1 rounded-lg transition-colors ${activeMobileTab === MobileTab.Progress
+                                ? 'bg-white/10'
+                                : 'hover:bg-gray-800/50'
+                                }`}>
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                            <span className="text-xs font-light mt-1">Progress</span>
                         </button>
                     </div>
                 </div>

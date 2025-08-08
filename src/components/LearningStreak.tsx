@@ -78,33 +78,52 @@ export default function LearningStreak({ streakDays, activeDays }: LearningStrea
     };
 
     return (
-        <div className="bg-[#121212] rounded-lg border border-gray-800 overflow-hidden">
-            <div className="bg-[#2A2000] px-4 py-3 border-b border-gray-800">
-                <h3 className="text-lg font-light text-white">Learning Streak</h3>
+        <div className="bg-gradient-to-br from-yellow-900/20 to-orange-900/10 backdrop-blur-sm rounded-xl border border-yellow-800/30 overflow-hidden">
+            <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/20 px-6 py-4 border-b border-yellow-800/30">
+                <div className="flex items-center">
+                    <div className="bg-yellow-600/20 p-2 rounded-lg mr-3">
+                        <div className="w-5 h-5 text-yellow-400">🔥</div>
+                    </div>
+                    <h3 className="text-xl font-light text-white">Learning Streak</h3>
+                </div>
             </div>
 
-            <div className="p-4">
-                <div className="text-3xl font-light mb-4 text-white flex items-center">
-                    {streakDays} Day{streakDays === 1 ? "" : "s"}
-                    {randomEmoji && <span className="ml-2" role="img" aria-label="Energizing emoji">{randomEmoji}</span>}
+            <div className="p-6">
+                <div className="text-center mb-6">
+                    <div className="text-4xl font-light mb-2 text-white flex items-center justify-center">
+                        <span className="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+                            {streakDays}
+                        </span>
+                        <span className="ml-2 text-white">Day{streakDays === 1 ? "" : "s"}</span>
+                        {randomEmoji && <span className="ml-3 text-2xl" role="img" aria-label="Energizing emoji">{randomEmoji}</span>}
+                    </div>
+                    <p className="text-yellow-400/80 text-sm">Keep the momentum going!</p>
                 </div>
 
-                <div className="flex justify-between w-full">
+                <div className="flex justify-between w-full space-x-2">
                     {daysOfWeek.map((day, index) => (
                         <div
                             key={index}
                             className={`
-                                flex-1 h-8 flex items-center justify-center rounded mx-1.5
+                                flex-1 h-10 flex items-center justify-center rounded-lg font-medium text-sm transition-all duration-200
                                 ${isDayActive(index)
-                                    ? "bg-[#F9B84E] text-black font-light"
-                                    : "bg-gray-800 text-gray-400 font-light"}
-                                ${index === 3 ? "border-2 border-[#F9B84E] bg-opacity-80" : ""}
+                                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-black shadow-lg"
+                                    : "bg-gray-800/50 text-gray-400 border border-gray-700"}
+                                ${index === 3 ? "ring-2 ring-yellow-500/50 ring-offset-2 ring-offset-gray-900" : ""}
                             `}
                         >
                             {day}
                         </div>
                     ))}
                 </div>
+
+                {streakDays > 0 && (
+                    <div className="mt-4 text-center">
+                        <p className="text-xs text-gray-400">
+                            Amazing work! You're building a great learning habit.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

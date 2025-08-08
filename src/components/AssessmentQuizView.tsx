@@ -142,102 +142,152 @@ export default function AssessmentQuizView({
     if (!assessmentStarted) {
         // Assessment start screen with improved layout
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-                <Card className="max-w-2xl w-full">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Shield className="w-5 h-5 text-purple-600" />
-                            Assessment Mode
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            <p className="text-gray-600">This quiz is in assessment mode with a {durationMinutes}-minute time limit.{integrityMonitoring && ' Integrity monitoring is enabled.'}</p>
-                            <Alert>
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertDescription>
-                                    Please ensure:
-                                    <ul className="list-disc list-inside mt-2 space-y-1">
-                                        <li>Your camera and microphone are working</li>
-                                        <li>You are in a quiet, well-lit environment</li>
-                                        <li>Do not switch tabs or open other applications</li>
-                                        <li>Keep your face visible to the camera</li>
-                                        <li>Do not copy or paste from external sources</li>
-                                    </ul>
-                                </AlertDescription>
-                            </Alert>
-                            <div className="flex items-center gap-6 bg-gray-50 p-4 rounded-lg">
+            <div className="min-h-screen bg-black flex items-center justify-center px-4">
+                <div className="max-w-3xl w-full">
+                    <div className="bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-2xl p-8 md:p-12 shadow-2xl">
+                        <div className="text-center mb-8">
+                            <div className="relative mb-6">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full opacity-20 blur-xl"></div>
+                                <Shield className="relative w-20 h-20 mx-auto text-purple-400" />
+                            </div>
+                            
+                            <h1 className="text-4xl md:text-5xl font-light mb-4 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                                Assessment Mode
+                            </h1>
+                            
+                            <p className="text-lg text-gray-300 mb-8 leading-relaxed">
+                                This quiz is in assessment mode with a {durationMinutes}-minute time limit.
+                                {integrityMonitoring && ' Comprehensive integrity monitoring is enabled.'}
+                            </p>
+                        </div>
+                        
+                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-8 mb-8 border border-gray-700">
+                            <h3 className="text-xl font-light mb-6 text-white flex items-center">
+                                <AlertTriangle className="w-5 h-5 mr-3 text-yellow-400" />
+                                Assessment Guidelines
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-300">
+                                <div className="flex items-start space-x-3">
+                                    <div className="bg-green-600/20 p-1 rounded-lg mt-0.5">
+                                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    </div>
+                                    <span className="text-sm">Camera and microphone are working</span>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <div className="bg-green-600/20 p-1 rounded-lg mt-0.5">
+                                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    </div>
+                                    <span className="text-sm">Quiet, well-lit environment</span>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <div className="bg-red-600/20 p-1 rounded-lg mt-0.5">
+                                        <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                    </div>
+                                    <span className="text-sm">No tab switching or other applications</span>
+                                </div>
+                                <div className="flex items-start space-x-3">
+                                    <div className="bg-red-600/20 p-1 rounded-lg mt-0.5">
+                                        <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                                    </div>
+                                    <span className="text-sm">No copying or pasting from external sources</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-800/30 rounded-xl p-6 mb-8">
+                            <div className="flex items-center justify-center space-x-8">
                                 <div className="text-center">
-                                    <div className="text-xs text-gray-500">Total Time</div>
-                                    <div className="font-mono font-bold">{formatTime(timeRemaining)}</div>
+                                    <div className="text-sm text-purple-400 mb-2 font-medium">Assessment Duration</div>
+                                    <div className="text-3xl font-light text-white font-mono">{formatTime(timeRemaining)}</div>
                                 </div>
                                 {integrityMonitoring && (
-                                    <div className="flex items-center gap-2">
-                                        <Shield className="h-4 w-4 text-green-600" />
-                                        <span className="text-sm text-green-700">Monitoring enabled</span>
+                                    <div className="flex items-center space-x-3">
+                                        <div className="bg-green-600/20 p-3 rounded-xl">
+                                            <Shield className="w-6 h-6 text-green-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-green-400 font-medium">Integrity Monitoring</div>
+                                            <div className="text-green-400/80 text-sm">Active & Enabled</div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                            <Button onClick={startAssessment} className="w-full" size="lg">Start Assessment</Button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <button
+                                onClick={startAssessment}
+                                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-4 px-8 rounded-full font-medium text-lg transition-all duration-200 transform hover:scale-105 shadow-xl cursor-pointer"
+                            >
+                                Start Assessment
+                            </button>
+                            
                             {onExitAssessment && (
-                                <Button variant="outline" onClick={onExitAssessment} className="w-full">Back to Course</Button>
+                                <button
+                                    onClick={onExitAssessment}
+                                    className="w-full bg-gray-800 hover:bg-gray-700 text-white py-3 px-6 rounded-lg border border-gray-700 transition-colors cursor-pointer"
+                                >
+                                    ← Back to Course
+                                </button>
                             )}
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-black">
             {/* Header */}
-            <div className="bg-white border-b shadow-sm sticky top-0 z-40">
+            <div className="bg-gradient-to-r from-gray-900 via-black to-gray-900 border-b border-gray-800 sticky top-0 z-40 backdrop-blur-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center py-4">
                         <div>
-                            <h1 className="text-xl font-semibold text-gray-900">Assessment Mode</h1>
-                            <p className="text-sm text-gray-500">Timed assessment</p>
+                            <h1 className="text-xl font-light text-white">Assessment Mode</h1>
+                            <p className="text-sm text-gray-400">Timed assessment with monitoring</p>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-6">
                             {/* Monitoring Status */}
                             {integrityMonitoring && (
-                                <div className="flex items-center gap-2">
-                                    <Shield className="h-4 w-4 text-green-600" />
-                                    <span className="text-sm text-green-700">Monitoring Active</span>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center space-x-2">
+                                        <div className="relative">
+                                            <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                                            <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-400 animate-ping opacity-75"></div>
+                                        </div>
+                                        <span className="text-sm text-green-400 font-medium">Monitoring Active</span>
+                                    </div>
+                                    <button
                                         onClick={() => setShowProctoring(!showProctoring)}
-                                        className="ml-2"
+                                        className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-1 rounded-lg border border-gray-700 transition-colors cursor-pointer"
                                     >
                                         {showProctoring ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </Button>
+                                    </button>
                                 </div>
                             )}
 
                             {/* Timer */}
-                            <div className="flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-gray-700" />
-                                <span className={`font-mono font-bold ${timeRemaining < 300 ? 'text-red-600' : 'text-gray-900'}`}>
+                            <div className="flex items-center gap-3 bg-gray-800/50 px-4 py-2 rounded-lg border border-gray-700">
+                                <Clock className="w-5 h-5 text-blue-400" />
+                                <span className={`font-mono font-medium text-lg ${timeRemaining < 300 ? 'text-red-400' : 'text-white'}`}>
                                     {formatTime(timeRemaining)}
                                 </span>
                             </div>
 
                             {/* Exit */}
                             {onExitAssessment && (
-                                <Button
+                                <button
                                     onClick={() => {
                                         if (confirm('Are you sure you want to exit? Your progress may be lost.')) {
                                             onExitAssessment();
                                         }
                                     }}
-                                    variant="destructive"
-                                    size="sm"
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2"
                                 >
-                                    <X className="w-4 h-4 mr-1" /> Exit
-                                </Button>
+                                    <X className="w-4 h-4" /> Exit
+                                </button>
                             )}
                         </div>
                     </div>
@@ -249,48 +299,36 @@ export default function AssessmentQuizView({
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Content */}
                     <div className="lg:col-span-3 space-y-6">
-                        <Card>
-                            <CardContent className="p-0">
-                                <div className="relative">
-                                    <LearnerQuizView {...quizProps} isTestMode={true} />
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800 overflow-hidden">
+                            <LearnerQuizView {...quizProps} isTestMode={true} className="h-[72vh]" />
+                        </div>
 
                         {timeRemaining <= 300 && timeRemaining > 0 && (
-                            <Alert className="border-red-200">
-                                <AlertTriangle className="h-4 w-4 text-red-600" />
-                                <AlertDescription className="text-red-700 font-medium">
-                                    {formatTime(timeRemaining)} remaining!
-                                </AlertDescription>
-                            </Alert>
+                            <div className="bg-gradient-to-r from-red-900/30 to-orange-900/30 border border-red-800/50 rounded-xl p-4">
+                                <div className="flex items-center gap-3">
+                                    <AlertTriangle className="h-6 w-6 text-red-400" />
+                                    <div>
+                                        <div className="text-red-400 font-medium">Time Warning</div>
+                                        <div className="text-red-300 text-sm">Only {formatTime(timeRemaining)} remaining!</div>
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </div>
 
                     {/* Sidebar */}
                     <div className="lg:col-span-1 space-y-6">
                         {integrityMonitoring && showProctoring && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-sm">Integrated Proctoring System</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <IntegratedProctorSystem
-                                        userId={user?.id || 0}
-                                        cohortId={cohortId ? parseInt(cohortId) : undefined}
-                                        taskId={taskId ? parseInt(taskId) : undefined}
-                                        sensitivity="medium"
-                                        autoStart={assessmentStarted}
-                                        onSessionEnd={(sessionId) => setIntegritySessionId(sessionId)}
-                                    />
-                                    {integritySessionId && (
-                                        <div className="mt-3 flex items-center gap-2 text-green-700 text-sm">
-                                            <CheckCircle className="h-4 w-4" />
-                                            <span>Monitoring active</span>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800 overflow-hidden">
+                                <IntegratedProctorSystem
+                                    userId={user?.id || 0}
+                                    cohortId={cohortId ? parseInt(cohortId) : undefined}
+                                    taskId={taskId ? parseInt(taskId) : undefined}
+                                    sensitivity="medium"
+                                    autoStart={assessmentStarted}
+                                    onSessionEnd={(sessionId) => setIntegritySessionId(sessionId)}
+                                />
+                            </div>
                         )}
                     </div>
                 </div>
