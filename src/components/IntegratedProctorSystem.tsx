@@ -18,6 +18,7 @@ import {
   XCircle
 } from 'lucide-react';
 import MediaPipeProctor from './MediaPipeProctor';
+import ConfirmationDialog from './ConfirmationDialog';
 import { 
   integrityAPI, 
   EventThrottler, 
@@ -53,6 +54,19 @@ export default function IntegratedProctorSystem({
     flagsCount: 0,
     integrityScore: 100
   });
+  const [notice, setNotice] = useState<{ show: boolean; title: string; message: string }>(
+    { show: false, title: '', message: '' }
+  );
+  const showBlockingNotice = useCallback((type: 'tab' | 'blur' | 'copy_paste') => {
+    if (type === 'copy_paste') {
+      setNotice({ show: true, title: 'Copy/Paste is not allowed', message: 'Please avoid copying or pasting during the assessment.' });
+    } else if (type === 'tab') {
+      setNotice({ show: true, title: 'Tab switching is not allowed', message: 'Please keep the assessment tab in focus at all times.' });
+    } else if (type === 'blur') {
+      setNotice({ show: true, title: 'Please keep your browser in focus', message: 'Switching away from the browser can impact integrity monitoring.' });
+    }
+  }, []);
+
 
   // Refs
   const eventThrottler = useRef(new EventThrottler());
@@ -180,9 +194,13 @@ export default function IntegratedProctorSystem({
 
   // Native browser event handlers
   const handleTabSwitch = useCallback(() => {
-    if (!session || !eventBatcher.current) return;
+    if (!session) return;
 
-    if (eventThrottler.current.shouldSendEvent('tab_switch')) {
+    // Always show the blocking notice immediately
+    showBlockingNotice('tab');
+
+    // Send batched event if allowed
+    if (eventBatcher.current && eventThrottler.current.shouldSendEvent('tab_switch')) {
       eventBatcher.current.addEvent({
         session_uuid: session.session_uuid,
         user_id: userId,
@@ -200,12 +218,14 @@ export default function IntegratedProctorSystem({
         integrityScore: Math.max(0, prev.integrityScore - 10)
       }));
     }
-  }, [session, userId]);
+  }, [session, userId, showBlockingNotice]);
 
   const handleWindowBlur = useCallback(() => {
-    if (!session || !eventBatcher.current) return;
+    if (!session) return;
 
-    if (eventThrottler.current.shouldSendEvent('window_blur')) {
+    showBlockingNotice('blur');
+
+    if (eventBatcher.current && eventThrottler.current.shouldSendEvent('window_blur')) {
       eventBatcher.current.addEvent({
         session_uuid: session.session_uuid,
         user_id: userId,
@@ -222,12 +242,14 @@ export default function IntegratedProctorSystem({
         integrityScore: Math.max(0, prev.integrityScore - 3)
       }));
     }
-  }, [session, userId]);
+  }, [session, userId, showBlockingNotice]);
 
   const handleCopyPaste = useCallback((event: ClipboardEvent) => {
-    if (!session || !eventBatcher.current) return;
+    if (!session) return;
 
-    if (eventThrottler.current.shouldSendEvent('copy_paste')) {
+    showBlockingNotice('copy_paste');
+
+    if (eventBatcher.current && eventThrottler.current.shouldSendEvent('copy_paste')) {
       eventBatcher.current.addEvent({
         session_uuid: session.session_uuid,
         user_id: userId,
@@ -249,7 +271,7 @@ export default function IntegratedProctorSystem({
         integrityScore: Math.max(0, prev.integrityScore - 5)
       }));
     }
-  }, [session, userId]);
+  }, [session, userId, showBlockingNotice]);
 
   // Setup native event listeners
   useEffect(() => {
@@ -447,9 +469,23 @@ export default function IntegratedProctorSystem({
             enabled={true}
             sensitivity={sensitivity}
             autoStart={true}
+            enableBackgroundAudioDetection={true}
           />
         </div>
       )}
+
+      {/* Blocking notification for native flags */}
+      <ConfirmationDialog
+        open={notice.show}
+        type="custom"
+        title={notice.title}
+        message={notice.message}
+        confirmButtonText="Okay, I understand"
+        cancelButtonText="Close"
+        onConfirm={() => setNotice({ show: false, title: '', message: '' })}
+        onCancel={() => setNotice({ show: false, title: '', message: '' })}
+        onClickOutside={() => { /* block closing via backdrop */ }}
+      />
 
       {/* Instructions Card */}
       {!isSessionActive && (

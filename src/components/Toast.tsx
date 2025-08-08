@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface ToastProps {
@@ -8,6 +9,7 @@ interface ToastProps {
     emoji: string;
     onClose: () => void;
     isMobileView?: boolean;
+    position?: 'top-right' | 'bottom-right';
 }
 
 const Toast: React.FC<ToastProps> = ({
@@ -16,12 +18,21 @@ const Toast: React.FC<ToastProps> = ({
     description,
     emoji,
     onClose,
-    isMobileView = false
+    isMobileView = false,
+    position = 'top-right'
 }) => {
-    if (!show) return null;
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+    if (!show || !mounted) return null;
 
-    return (
-        <div className={`fixed ${isMobileView ? 'top-0 left-0 right-0 w-full rounded-none' : 'bottom-4 right-4 rounded-lg max-w-md'} bg-white text-black px-6 py-4 shadow-lg z-100 flex items-center gap-4`}>
+    const positionClass = isMobileView
+        ? 'top-0 left-0 right-0 w-full rounded-none'
+        : position === 'top-right'
+            ? 'top-4 right-4 rounded-lg max-w-md'
+            : 'bottom-4 right-4 rounded-lg max-w-md';
+
+    return createPortal(
+        <div className={`fixed ${positionClass} bg-white text-black px-6 py-4 shadow-lg z-[10000] flex items-center gap-4`}>
             <div className="flex items-center justify-center w-10 h-10 bg-amber-50 rounded-full">
                 <span className="text-xl">{emoji}</span>
             </div>
@@ -35,7 +46,8 @@ const Toast: React.FC<ToastProps> = ({
             >
                 <X size={16} />
             </button>
-        </div>
+        </div>,
+        document.body
     );
 };
 

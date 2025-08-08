@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trash2 } from 'lucide-react';
 
 interface ConfirmationDialogProps {
@@ -69,7 +70,10 @@ export default function ConfirmationDialog({
     // Handle both 'open' and 'show' props for backward compatibility
     const isVisible = open !== undefined ? open : (show !== undefined ? show : false);
 
-    if (!isVisible) return null;
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    if (!isVisible || !mounted) return null;
 
     // Default values based on type
     const defaultTitle = type === 'publish' ? "Ready to publish?"
@@ -105,9 +109,9 @@ export default function ConfirmationDialog({
         }
     };
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
             onClick={(e) => {
                 e.stopPropagation();
                 onClickOutside ? onClickOutside() : onCancel();
@@ -175,6 +179,7 @@ export default function ConfirmationDialog({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 } 

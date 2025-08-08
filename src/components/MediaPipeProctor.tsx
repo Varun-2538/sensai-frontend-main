@@ -2,7 +2,8 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 
-import { AlertTriangle, Eye, EyeOff, Camera, CameraOff } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, Camera, CameraOff, Mic, Users, Move3D, PersonStanding } from 'lucide-react';
+import Toast from './Toast';
 
 // MediaPipe imports
 declare global {
@@ -15,7 +16,7 @@ declare global {
 }
 
 interface ProctorEvent {
-  type: 'face_not_detected' | 'multiple_faces' | 'looking_away' | 'head_movement' | 'pose_change';
+  type: 'face_not_detected' | 'multiple_faces' | 'looking_away' | 'head_movement' | 'pose_change' | 'suspicious_activity';
   timestamp: number;
   severity: 'low' | 'medium' | 'high';
   data: any;
@@ -27,6 +28,7 @@ interface MediaPipeProctorProps {
   enabled?: boolean;
   sensitivity?: 'low' | 'medium' | 'high';
   autoStart?: boolean;
+  enableBackgroundAudioDetection?: boolean;
 }
 
 export default function MediaPipeProctor({
@@ -34,7 +36,8 @@ export default function MediaPipeProctor({
   onEventDetected,
   enabled = true,
   sensitivity = 'medium',
-  autoStart = false
+  autoStart = false,
+  enableBackgroundAudioDetection = false
 }: MediaPipeProctorProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -59,6 +62,32 @@ export default function MediaPipeProctor({
   const [poseBaseline, setPoseBaseline] = useState<any>(null);
   const lastFrameTime = useRef<number>(0);
   const eventCooldowns = useRef<Map<string, number>>(new Map());
+  const driftFramesRef = useRef<number>(0);
+  const facingOkRef = useRef<boolean>(true);
+  // Audio/VAD state
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioDataRef = useRef<Float32Array | null>(null);
+  const audioIntervalRef = useRef<number | null>(null);
+  const audioBaselineRef = useRef<number>(0);
+  const audioBaselineSamplesRef = useRef<number>(0);
+  const lastMouthGapRef = useRef<number>(0);
+  const [audioState, setAudioState] = useState<'idle' | 'running' | 'suspended' | 'error'>('idle');
+  // Toast state
+  const [toast, setToast] = useState<{ show: boolean; title: string; desc: string; emoji: string }>({ show: false, title: '', desc: '', emoji: '' });
+  const toastTimerRef = useRef<number | null>(null);
+
+  const ensureAudioRunning = useCallback(async () => {
+    try {
+      if (audioContextRef.current && audioContextRef.current.state !== 'running') {
+        await audioContextRef.current.resume();
+        setAudioState(audioContextRef.current.state as any);
+      }
+    } catch (e) {
+      console.warn('Audio resume failed:', e);
+      setAudioState('error');
+    }
+  }, []);
 
   // Load MediaPipe scripts
   useEffect(() => {
@@ -290,11 +319,86 @@ export default function MediaPipeProctor({
           height: { ideal: 720 },
           facingMode: 'user'
         },
-        audio: false
+        audio: enableBackgroundAudioDetection
       });
 
       console.log('✅ Camera access granted, stream active:', stream.active);
       console.log('📹 Video tracks:', stream.getVideoTracks().length);
+
+      // If background audio detection is enabled, set up WebAudio VAD
+      if (enableBackgroundAudioDetection) {
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const source = audioContext.createMediaStreamSource(stream);
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 2048;
+          analyser.smoothingTimeConstant = 0.8;
+          source.connect(analyser);
+          audioContextRef.current = audioContext;
+          analyserRef.current = analyser;
+          audioDataRef.current = new Float32Array(analyser.fftSize);
+
+          // Try to start audio processing immediately; if suspended, attach a one-time user-gesture resume
+          try {
+            await audioContext.resume();
+          } catch {}
+          setAudioState(audioContext.state as any);
+          if (audioContext.state !== 'running') {
+            const resumeOnUserGesture = async () => {
+              await ensureAudioRunning();
+              document.removeEventListener('click', resumeOnUserGesture);
+              document.removeEventListener('touchstart', resumeOnUserGesture);
+              document.removeEventListener('keydown', resumeOnUserGesture);
+            };
+            document.addEventListener('click', resumeOnUserGesture, { once: true });
+            document.addEventListener('touchstart', resumeOnUserGesture, { once: true });
+            document.addEventListener('keydown', resumeOnUserGesture, { once: true });
+          }
+
+          // Periodic audio analysis (~10 Hz)
+          const intervalMs = 100;
+          audioIntervalRef.current = window.setInterval(() => {
+            if (!analyserRef.current || !audioDataRef.current) return;
+            analyserRef.current.getFloatTimeDomainData(audioDataRef.current);
+
+            // Compute RMS
+            let sumSquares = 0;
+            const buf = audioDataRef.current;
+            for (let i = 0; i < buf.length; i++) {
+              const v = buf[i];
+              sumSquares += v * v;
+            }
+            const rms = Math.sqrt(sumSquares / buf.length);
+
+            // Build a baseline over initial ~1.5s (ensure audio is running)
+            if (audioBaselineSamplesRef.current < 15) {
+              audioBaselineRef.current = (audioBaselineRef.current * audioBaselineSamplesRef.current + rms) / (audioBaselineSamplesRef.current + 1);
+              audioBaselineSamplesRef.current += 1;
+              return;
+            }
+
+            // Thresholds
+            const minAbsolute = 0.01; // ignore very low noise
+            const factor = sensitivity === 'high' ? 2.0 : sensitivity === 'medium' ? 2.5 : 3.0;
+            const threshold = Math.max(minAbsolute, audioBaselineRef.current * factor);
+
+            // If audio is above threshold while mouth appears closed -> background noise
+            const mouthGap = lastMouthGapRef.current; // updated from landmarks
+            const mouthClosed = mouthGap < 0.012; // normalized gap heuristic
+
+            if (rms > threshold && mouthClosed) {
+              triggerEvent({
+                type: 'suspicious_activity',
+                timestamp: performance.now(),
+                severity: rms > threshold * 1.5 ? 'medium' : 'low',
+                data: { event_subtype: 'background_noise', rms, baseline: audioBaselineRef.current }
+              });
+            }
+          }, intervalMs) as unknown as number;
+        } catch (e) {
+          console.warn('Audio analysis init failed:', e);
+        }
+      }
 
       // Store the stream and set monitoring to true (this will render the video element)
       setPendingStream(stream);
@@ -343,6 +447,21 @@ export default function MediaPipeProctor({
     setVideoState({ playing: false, dimensions: { width: 0, height: 0 } });
     setError(null);
     setIsLoading(false);
+    
+    // Tear down audio analysis
+    if (audioIntervalRef.current) {
+      clearInterval(audioIntervalRef.current);
+      audioIntervalRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch {}
+      audioContextRef.current = null;
+      analyserRef.current = null;
+      audioDataRef.current = null;
+      audioBaselineRef.current = 0;
+      audioBaselineSamplesRef.current = 0;
+      lastMouthGapRef.current = 0;
+    }
     
     console.log('✅ Camera monitoring stopped');
   };
@@ -457,15 +576,55 @@ export default function MediaPipeProctor({
       
       const headAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
       
-      // Check if looking away (simplified heuristic)
+      // Heuristics using normalized coordinates (0..1)
       const noseDeviation = Math.abs(noseTip.x - eyeCenter.x);
-      if (noseDeviation > getSensitivityThreshold('gaze', sensitivity)) {
+
+      // Thresholds for slight drift vs away
+      const gazeAwayThreshold = getSensitivityThreshold('gaze', sensitivity); // existing mapping
+      const slightDriftThreshold = gazeAwayThreshold * 0.5; // more sensitive
+
+      // Face position OK/Not OK based on both deviation and roll angle
+      const isFacingOk = noseDeviation <= slightDriftThreshold && Math.abs(headAngle) <= getSensitivityThreshold('head_movement', sensitivity);
+
+      // Emit transition to Not OK (looking away) as a medium severity
+      if (!isFacingOk && facingOkRef.current && noseDeviation > gazeAwayThreshold) {
+        facingOkRef.current = false;
+        driftFramesRef.current = 0;
         triggerEvent({
           type: 'looking_away',
           timestamp,
           severity: 'medium',
-          data: { headAngle, noseDeviation, landmarks: { leftEye, rightEye, noseTip } }
+          data: { reason: 'off_camera', headAngle, noseDeviation }
         });
+      }
+
+      // Slight drift detection: sustained minor deviation
+      if (!isFacingOk && noseDeviation > slightDriftThreshold && noseDeviation <= gazeAwayThreshold) {
+        driftFramesRef.current += 1;
+        const framesNeeded = sensitivity === 'high' ? 8 : sensitivity === 'medium' ? 12 : 16; // ~0.25–0.5s
+        if (driftFramesRef.current >= framesNeeded) {
+          triggerEvent({
+            type: 'looking_away',
+            timestamp,
+            severity: 'low',
+            data: { reason: 'gaze_drift', headAngle, noseDeviation }
+          });
+          driftFramesRef.current = 0;
+        }
+      }
+
+      // Return to OK state
+      if (isFacingOk && !facingOkRef.current) {
+        facingOkRef.current = true;
+        driftFramesRef.current = 0;
+      }
+
+      // Track mouth openness for background-noise discrimination
+      const upperLip = landmarks[13];
+      const lowerLip = landmarks[14];
+      if (upperLip && lowerLip) {
+        const mouthGap = Math.abs(lowerLip.y - upperLip.y);
+        lastMouthGapRef.current = mouthGap;
       }
 
       // Store baseline if not set
@@ -547,6 +706,18 @@ export default function MediaPipeProctor({
         const updated = [event, ...prev.slice(0, 4)]; // Keep last 5 events
         return updated;
       });
+
+      // Show toast for specific flags
+      const isBackgroundNoise = event.type === 'suspicious_activity' && event.data?.event_subtype === 'background_noise';
+      const isMultipleFaces = event.type === 'multiple_faces';
+      if (isBackgroundNoise || isMultipleFaces) {
+        const title = isBackgroundNoise ? 'Background noise detected' : 'Multiple faces detected';
+        const desc = isBackgroundNoise ? 'We heard voices/noise while your mouth appeared closed.' : 'Only one person should be in view during assessment.';
+        const emoji = isBackgroundNoise ? '🔊' : '👥';
+        setToast({ show: true, title, desc, emoji });
+        if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = window.setTimeout(() => setToast(t => ({ ...t, show: false })), 4000) as unknown as number;
+      }
     }
   };
 
@@ -572,7 +743,7 @@ export default function MediaPipeProctor({
     faces.forEach((detection: any, index: number) => {
       const bbox = detection.boundingBox;
       if (bbox) {
-        ctx.strokeStyle = faces.length > 1 ? '#ff0000' : '#00ff00';
+        ctx.strokeStyle = faces.length > 1 ? '#ff0000' : (facingOkRef.current ? '#00ff88' : '#ff8800');
         ctx.lineWidth = 2;
         ctx.strokeRect(
           bbox.originX,
@@ -582,7 +753,7 @@ export default function MediaPipeProctor({
         );
         
         // Label
-        ctx.fillStyle = faces.length > 1 ? '#ff0000' : '#00ff00';
+        ctx.fillStyle = faces.length > 1 ? '#ff0000' : (facingOkRef.current ? '#00ff88' : '#ff8800');
         ctx.font = '16px Arial';
         ctx.fillText(
           `Face ${index + 1}`,
@@ -593,13 +764,15 @@ export default function MediaPipeProctor({
     });
     
     // Show monitoring status
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(10, 10, 240, 90);
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(10, 10, 200, 80);
-    ctx.fillStyle = '#000000';
-    ctx.font = '14px Arial';
-    ctx.fillText(`Monitoring: ${isMonitoring ? 'Active' : 'Inactive'}`, 15, 30);
-    ctx.fillText(`Faces: ${faces.length}`, 15, 50);
-    ctx.fillText(`Session: ${sessionId.slice(0, 8)}...`, 15, 70);
+    ctx.font = '13px Arial';
+    ctx.fillText(`Monitoring: ${isMonitoring ? 'Active' : 'Inactive'}`, 16, 32);
+    ctx.fillText(`Faces: ${faces.length}`, 16, 52);
+    ctx.fillText(`Session: ${sessionId.slice(0, 8)}...`, 16, 72);
+    ctx.fillStyle = facingOkRef.current ? '#00ff88' : '#ff8800';
+    ctx.fillText(`Face Position: ${facingOkRef.current ? 'OK' : 'Not OK'}`, 16, 92);
   };
 
   return (
@@ -664,6 +837,14 @@ export default function MediaPipeProctor({
             className="absolute inset-0 w-full h-full pointer-events-none"
           />
 
+          {/* Recent background noise badge */}
+          {currentEvents[0]?.type === 'suspicious_activity' && currentEvents[0]?.data?.event_subtype === 'background_noise' && (
+            <div className="absolute top-3 right-3 flex items-center gap-2 bg-red-600/80 text-white text-xs px-3 py-1.5 rounded-md shadow">
+              <Mic className="h-3.5 w-3.5" />
+              <span>Background noise detected</span>
+            </div>
+          )}
+
           {/* Manual play fallback if browser blocks autoplay */}
           {videoRef.current?.paused && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40">
@@ -677,6 +858,61 @@ export default function MediaPipeProctor({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Toast notifications */}
+      <Toast
+        show={toast.show}
+        title={toast.title}
+        description={toast.desc}
+        emoji={toast.emoji}
+        position="top-right"
+        onClose={() => setToast(t => ({ ...t, show: false }))}
+      />
+
+      {/* Recent flags list */}
+      {currentEvents.length > 0 && (
+        <div className="mt-4">
+          <div className="text-xs text-gray-400 mb-2">Recent flags</div>
+          <ul className="space-y-2">
+            {currentEvents.map((e, idx) => {
+              const isNoise = e.type === 'suspicious_activity' && e.data?.event_subtype === 'background_noise';
+              const label = isNoise
+                ? 'Background noise'
+                : e.type === 'face_not_detected'
+                ? 'Face not detected'
+                : e.type === 'multiple_faces'
+                ? 'Multiple faces detected'
+                : e.type === 'looking_away'
+                ? (e.data?.reason === 'gaze_drift' ? 'Gaze drift' : 'Looking away')
+                : e.type === 'head_movement'
+                ? 'Head movement'
+                : e.type === 'pose_change'
+                ? 'Pose change'
+                : 'Event';
+              const severityColor = e.severity === 'high' ? 'text-red-400' : e.severity === 'medium' ? 'text-amber-400' : 'text-yellow-300';
+              return (
+                <li key={idx} className="flex items-center justify-between rounded-md border border-gray-700/70 bg-gray-900/40 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    {isNoise ? (
+                      <Mic className="h-4 w-4 text-red-400" />
+                    ) : e.type === 'multiple_faces' ? (
+                      <Users className="h-4 w-4 text-red-400" />
+                    ) : e.type === 'pose_change' ? (
+                      <PersonStanding className="h-4 w-4 text-amber-400" />
+                    ) : e.type === 'head_movement' ? (
+                      <Move3D className="h-4 w-4 text-amber-400" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    )}
+                    <span className="text-sm text-gray-200">{label}</span>
+                  </div>
+                  <span className={`text-[10px] uppercase tracking-wide ${severityColor}`}>{e.severity}</span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>
