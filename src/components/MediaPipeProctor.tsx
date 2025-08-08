@@ -24,20 +24,24 @@ interface ProctorEvent {
 
 interface MediaPipeProctorProps {
   sessionId: string;
+  userId: number;
   onEventDetected: (event: ProctorEvent) => void;
   enabled?: boolean;
   sensitivity?: 'low' | 'medium' | 'high';
   autoStart?: boolean;
   enableBackgroundAudioDetection?: boolean;
+  durationMinutes?: number;
 }
 
 export default function MediaPipeProctor({
   sessionId,
+  userId,
   onEventDetected,
   enabled = true,
   sensitivity = 'medium',
   autoStart = false,
-  enableBackgroundAudioDetection = false
+  enableBackgroundAudioDetection = false,
+  durationMinutes
 }: MediaPipeProctorProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -75,6 +79,9 @@ export default function MediaPipeProctor({
   const audioBaselineSamplesRef = useRef<number>(0);
   const lastMouthGapRef = useRef<number>(0);
   const [audioState, setAudioState] = useState<'idle' | 'running' | 'suspended' | 'error'>('idle');
+  // Snapshot scheduling
+  const snapshotTimersRef = useRef<number[]>([]);
+  // duplicate declaration removed
   // Toast state
   const [toast, setToast] = useState<{ show: boolean; title: string; desc: string; emoji: string }>({ show: false, title: '', desc: '', emoji: '' });
   const toastTimerRef = useRef<number | null>(null);
@@ -535,6 +542,65 @@ export default function MediaPipeProctor({
 
     requestAnimationFrame(analyze);
   };
+
+  // Snapshot scheduling
+  const scheduleSnapshots = useCallback(() => {
+    // Clear previous timers
+    snapshotTimersRef.current.forEach((id) => clearTimeout(id));
+    snapshotTimersRef.current = [];
+
+    const totalMs = (durationMinutes && durationMinutes > 0 ? durationMinutes : 60) * 60 * 1000;
+    const earlyWindowMs = Math.min(20000, totalMs);
+    const earlyTimes: number[] = [];
+    for (let i = 0; i < 3; i++) earlyTimes.push(Math.random() * earlyWindowMs);
+
+    const midStart = totalMs * 0.2;
+    const midEnd = totalMs * 0.8;
+    const midTimes: number[] = [];
+    for (let i = 0; i < 5; i++) midTimes.push(midStart + Math.random() * (midEnd - midStart));
+
+    const times = [...earlyTimes, ...midTimes].sort((a, b) => a - b);
+    times.forEach((t) => {
+      const now = performance.now();
+      const base = monitoringStartTimeRef.current || now;
+      const delay = Math.max(0, t - (now - base));
+      const id = window.setTimeout(() => {
+        captureAndUploadSnapshot().catch((e) => console.error('snapshot failed', e));
+      }, delay);
+      snapshotTimersRef.current.push(id);
+    });
+  }, [durationMinutes]);
+
+  const captureAndUploadSnapshot = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video.videoWidth || !video.videoHeight) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+    // Dispatch to parent handler via window so it can include userId
+    const evt = new CustomEvent('integrity:snapshot', { detail: { session_uuid: sessionId, user_id: userId, dataUrl } });
+    window.dispatchEvent(evt);
+  }, [sessionId, userId]);
+
+  // When monitoring state toggles to true, schedule snapshots
+  useEffect(() => {
+    if (isMonitoring) {
+      scheduleSnapshots();
+    } else {
+      snapshotTimersRef.current.forEach((id) => clearTimeout(id));
+      snapshotTimersRef.current = [];
+    }
+    return () => {
+      snapshotTimersRef.current.forEach((id) => clearTimeout(id));
+      snapshotTimersRef.current = [];
+    };
+  }, [isMonitoring, scheduleSnapshots]);
 
   // Analyze face detection results
   const analyzeFaces = (results: any, timestamp: number) => {

@@ -328,6 +328,7 @@ export default function AssessmentQuizView({
                                     sensitivity="medium"
                                     autoStart={assessmentStarted}
                                     onSessionEnd={(sessionId) => setIntegritySessionId(sessionId)}
+                                    durationMinutes={durationMinutes}
                                 />
                             </div>
                         )}

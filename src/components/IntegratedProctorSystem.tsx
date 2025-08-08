@@ -34,6 +34,7 @@ interface IntegratedProctorSystemProps {
   onSessionEnd?: (sessionUuid: string, analysis: any) => void;
   sensitivity?: 'low' | 'medium' | 'high';
   autoStart?: boolean;
+  durationMinutes?: number;
 }
 
 export default function IntegratedProctorSystem({
@@ -42,7 +43,8 @@ export default function IntegratedProctorSystem({
   taskId,
   onSessionEnd,
   sensitivity = 'medium',
-  autoStart = false
+  autoStart = false,
+  durationMinutes
 }: IntegratedProctorSystemProps) {
   // State
   const [session, setSession] = useState<IntegritySession | null>(null);
@@ -456,6 +458,26 @@ export default function IntegratedProctorSystem({
     };
   }, []);
 
+  // Listen for snapshot events from MediaPipeProctor and upload to backend
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const detail = (e as CustomEvent).detail as { session_uuid: string; user_id: number; dataUrl: string };
+      if (!detail) return;
+      try {
+        await integrityAPI.uploadSnapshot({
+          session_uuid: detail.session_uuid,
+          user_id: detail.user_id,
+          image_base64: detail.dataUrl,
+          filename: `snapshot_${Date.now()}.jpg`
+        });
+      } catch (err) {
+        console.error('Snapshot upload failed', err);
+      }
+    };
+    window.addEventListener('integrity:snapshot', handler as EventListener);
+    return () => window.removeEventListener('integrity:snapshot', handler as EventListener);
+  }, []);
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
@@ -587,11 +609,13 @@ export default function IntegratedProctorSystem({
         <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl border border-gray-700 overflow-hidden">
           <MediaPipeProctor
             sessionId={session.session_uuid}
+            userId={userId}
             onEventDetected={handleMediaPipeEvent}
             enabled={true}
             sensitivity={sensitivity}
             autoStart={true}
             enableBackgroundAudioDetection={true}
+            durationMinutes={durationMinutes}
           />
         </div>
       )}

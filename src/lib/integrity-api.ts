@@ -5,7 +5,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 export interface ProctorEvent {
-  type: 'face_not_detected' | 'multiple_faces' | 'looking_away' | 'head_movement' | 'pose_change' | 'tab_switch' | 'window_blur' | 'copy_paste' | 'suspicious_activity' | 'mouse_drift';
+  type: 'face_not_detected' | 'multiple_faces' | 'looking_away' | 'head_movement' | 'pose_change' | 'tab_switch' | 'window_blur' | 'copy_paste' | 'suspicious_activity' | 'mouse_drift' | 'snapshot';
   timestamp: number;
   severity: 'low' | 'medium' | 'high';
   data: any;
@@ -257,6 +257,19 @@ class IntegrityAPI {
       }));
     }
     return analysis;
+  }
+
+  // Snapshot upload
+  async uploadSnapshot(data: {
+    session_uuid: string;
+    user_id: number;
+    image_base64: string; // may be data URL or raw base64
+    filename?: string;
+  }): Promise<{ cid: string; url: string }> {
+    return this.makeRequest('/snapshots', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   async getCohortOverview(

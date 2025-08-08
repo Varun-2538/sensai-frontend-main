@@ -31,7 +31,8 @@ type EventType =
     | 'tab_switch'
     | 'window_blur'
     | 'copy_paste'
-    | 'suspicious_activity';
+    | 'suspicious_activity'
+    | 'snapshot';
 
 type SeverityLevel = 'low' | 'medium' | 'high';
 
@@ -45,6 +46,7 @@ const eventIcons: Record<EventType, React.ComponentType<{ className?: string }>>
     'window_blur': Monitor,
     'copy_paste': Copy,
     'suspicious_activity': AlertTriangle,
+    'snapshot': Camera,
 };
 
 const severityColors: Record<SeverityLevel, string> = {
@@ -198,6 +200,30 @@ export default function TimelineViewer({ sessionUuid, userId }: TimelineViewerPr
 
     return (
         <div className="bg-gray-900 rounded-lg p-6">
+            {/* Snapshot strip */}
+            {events.some(e => e.type === 'snapshot' && (e as any).data?.url) && (
+                <div className="mb-6">
+                    <h4 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
+                        <Camera className="w-4 h-4 text-blue-400" /> Session Snapshots
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                        {[...events]
+                          .filter(e => e.type === 'snapshot' && (e as any).data?.url)
+                          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+                          .map((e, idx) => (
+                            <div key={idx} className="w-32">
+                                <a href={(e as any).data.url as string} target="_blank" rel="noopener noreferrer">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={(e as any).data.url as string} alt="snapshot" className="w-32 h-20 object-cover rounded border border-gray-700" />
+                                </a>
+                                <div className="mt-1 text-[10px] text-gray-400 text-center">
+                                    {e.timestamp ? format(new Date(e.timestamp), 'HH:mm:ss') : ''}
+                                </div>
+                            </div>
+                          ))}
+                    </div>
+                </div>
+            )}
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-semibold text-white">Assessment Timeline</h3>
                 
